@@ -1,0 +1,30 @@
+{
+  "name": "@aha-app/mvc",
+  "version": "1.0.0",
+  "description": "Simple MVC framework using React for the view and GraphQL for the models.",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "node config/build.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aha-app/mvc.git"
+  },
+  "author": "Aha!",
+  "license": "UNLICENSED",
+  "homepage": "https://github.com/aha-app/mvc#readme",
+  "dependencies": {
+    "@aha-app/react-easy-state": "^0.0.10-development",
+    "@apollo/client": "^3.1.2",
+    "caf": "^9.0.0",
+    "debug": "^4.1.0",
+    "esbuild": "^0.12.22",
+    "graphql": "^15.3.0",
+    "immer": "^8.0.1",
+    "inflected": "^2.0.4",
+    "lodash": "^4.17.21",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  }
+}
