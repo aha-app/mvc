@@ -12,7 +12,13 @@ import ApplicationModel, {
 import { view as ApplicationView } from "@aha-app/react-easy-state";
 
 // Export our public API.
+export default ApplicationController;
 export {
+  // Controller
+  ApplicationController,
+  StartControllerScope,
+  ControlledComponent,
+  useController,
   // Model
   ApplicationModel,
   attr,
@@ -20,9 +26,4 @@ export {
   hasMany,
   // View
   ApplicationView,
-  // Controller
-  ApplicationController,
-  StartControllerScope,
-  ControlledComponent,
-  useController,
 };
