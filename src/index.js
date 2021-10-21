@@ -10,6 +10,7 @@ import ApplicationModel, {
   hasMany,
 } from "./model/ApplicationModel";
 import { view as ApplicationView } from "@aha-app/react-easy-state";
+import { raw } from "@nx-js/observer-util";
 
 // Export our public API.
 export default ApplicationController;
@@ -26,4 +27,6 @@ export {
   hasMany,
   // View
   ApplicationView,
+  // observer.
+  raw,
 };
