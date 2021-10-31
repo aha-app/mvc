@@ -11,6 +11,7 @@ import ApplicationModel, {
 } from "./model/ApplicationModel";
 import { view as ApplicationView } from "@aha-app/react-easy-state";
 import { raw } from "@nx-js/observer-util";
+import { randomId } from "./utils/randomId";
 
 // Export our public API.
 export default ApplicationController;
@@ -29,4 +30,6 @@ export {
   ApplicationView,
   // observer.
   raw,
+  // utils
+  randomId,
 };

@@ -32178,6 +32178,9 @@ function hasMany(options = {}) {
   return { type: "hasMany", ...options };
 }
 addProxyInstanceOf_default(ApplicationModel);
+
+// src/index.js
+var src_default = ApplicationController;
 export {
   ApplicationController,
   ApplicationModel,
@@ -32186,7 +32189,10 @@ export {
   StartControllerScope,
   attr,
   belongsTo,
+  src_default as default,
   hasMany,
+  randomId,
+  raw,
   useController
 };
 /*
