@@ -4,6 +4,7 @@ build({
   entryPoints: ["src/index.js"],
   bundle: true,
   format: "esm",
-  outfile: "dist/mvc.js",
+  outfile: "dist/index.js",
   write: true,
+  external: ["react", "react-dom"],
 });
