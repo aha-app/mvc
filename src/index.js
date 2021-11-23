@@ -9,6 +9,7 @@ import ApplicationModel, {
   belongsTo,
   hasMany,
 } from "./model/ApplicationModel";
+import ApolloModelClient from "./model/ApolloModelClient";
 import { view as ApplicationView } from "@aha-app/react-easy-state";
 import { raw } from "@nx-js/observer-util";
 import { randomId } from "./utils/randomId";
@@ -23,6 +24,7 @@ export {
   useController,
   // Model
   ApplicationModel,
+  ApolloModelClient,
   attr,
   belongsTo,
   hasMany,
