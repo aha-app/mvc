@@ -1,6 +1,6 @@
 {
   "name": "@aha-app/mvc",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Simple MVC framework using React for the view and GraphQL for the models.",
   "main": "dist/index.cjs.js",
   "type": "module",
@@ -23,11 +23,11 @@
     "@apollo/client": "^3.1.2",
     "caf": "^9.0.0",
     "debug": "^4.1.0",
-    "inflected": "^2.0.4",
-    "lodash": "^4.17.21",
-    "immer": "^9.0.6",
+    "esbuild": "^0.12.22",
     "graphql": "^15.3.0",
-    "esbuild": "^0.12.22"
+    "immer": "^9.0.6",
+    "inflected": "^2.0.4",
+    "lodash": "^4.17.21"
   },
   "peerDependencies": {
     "react": "^16.8.4",
