@@ -7,6 +7,7 @@ build({
   outfile: "dist/index.esm.js",
   write: true,
   external: ["react", "react-dom"],
+  target: "es2018", // TODO: remove this when aha-app supports esnext.
 });
 
 build({
@@ -16,4 +17,5 @@ build({
   outfile: "dist/index.cjs.js",
   write: true,
   external: ["react", "react-dom"],
+  target: "es2018", // TODO: remove this when aha-app supports esnext.
 });

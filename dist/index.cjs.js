@@ -10255,7 +10255,8 @@ var Errors = class {
     return Object.keys(this.errors).length === 0;
   }
   on(attribute) {
-    return this.errors[attribute]?.messages || [];
+    var _a7;
+    return ((_a7 = this.errors[attribute]) == null ? void 0 : _a7.messages) || [];
   }
   has(attribute) {
     return this.on(attribute).length > 0;
@@ -10835,9 +10836,10 @@ var dn = an.finishDraft.bind(an);
 // src/model/Fragment.js
 var import_mapValues = __toModule(require_mapValues());
 var import_isObject = __toModule(require_isObject());
+var _a;
 var Fragment = class {
-  [L] = true;
   constructor(name = null, type = null) {
+    __publicField(this, _a, true);
     this.name = name;
     this._union = false;
     this._alias = void 0;
@@ -10987,6 +10989,7 @@ var Fragment = class {
     };
   }
 };
+_a = L;
 function variableDefinition(name, type) {
   return {
     kind: "VariableDefinition",
@@ -14373,11 +14376,13 @@ function memoize(object, key, value) {
 
 // src/model/Query.js
 C();
-var Query = class {
-  [L] = true;
+var _a2;
+var _Query = class {
   constructor(model) {
+    __publicField(this, _a2, true);
+    var _a7;
     this.model = model;
-    this.paramTypes = { filters: this.model?.filterType };
+    this.paramTypes = { filters: (_a7 = this.model) == null ? void 0 : _a7.filterType };
     this.attrs = new Set();
     this.arguments = {};
     this.filters = {};
@@ -14439,7 +14444,7 @@ var Query = class {
   }
   reorder(criteria) {
     return fn(this, (draft) => {
-      draft.sort = criteria ?? {};
+      draft.sort = criteria != null ? criteria : {};
     });
   }
   first() {
@@ -14451,10 +14456,11 @@ var Query = class {
     Object.entries(subqueries).forEach(([name, value]) => {
       subqueries = fn(subqueries, (draft) => {
         if (Array.isArray(value)) {
-          draft[name] = new Query().select(value).first();
+          draft[name] = new _Query().select(value).first();
         } else {
           draft[name] = fn(draft[name], (draft2) => {
-            draft2.paramTypes = this.model.fields[name]?.args;
+            var _a7;
+            draft2.paramTypes = (_a7 = this.model.fields[name]) == null ? void 0 : _a7.args;
             draft2.single = true;
           });
         }
@@ -14485,7 +14491,7 @@ var Query = class {
     let currentPage = 1;
     let isLastPage = false;
     const totalRecords = [];
-    pageCallback = pageCallback ?? ((page) => totalRecords.push(...page.materializeRecords()));
+    pageCallback = pageCallback != null ? pageCallback : (page) => totalRecords.push(...page.materializeRecords());
     do {
       let page = await this.page(currentPage).stats(["isLastPage"]).all();
       await pageCallback(page);
@@ -14553,7 +14559,8 @@ var Query = class {
     }
   }
   buildQueryFragment(name = this.queryName, union = false) {
-    let fragment = new Fragment(name, this.model?.typename);
+    var _a7;
+    let fragment = new Fragment(name, (_a7 = this.model) == null ? void 0 : _a7.typename);
     if (union) {
       fragment = fragment.union();
     } else {
@@ -14568,6 +14575,8 @@ var Query = class {
     return memoize(this, "queryFragment", () => this.buildQueryFragment().resolve());
   }
 };
+var Query = _Query;
+_a2 = L;
 
 // src/model/RelationAttribute.js
 var RelationAttribute = class {
@@ -14631,7 +14640,7 @@ var _ApplicationModel = class {
   }
   static idFromReactivePattern(pattern) {
     const match = pattern.replace("::", "").match(new RegExp(`^${this.typename}-(\\d+)`));
-    return match?.[1];
+    return match == null ? void 0 : match[1];
   }
   static async query(fragment) {
     const resolvedFragment = fragment.resolve();
@@ -14920,11 +14929,11 @@ var {
 
 // node_modules/ts-invariant/lib/invariant.esm.js
 var genericMessage = "Invariant Violation";
-var _a = Object.setPrototypeOf;
-var setPrototypeOf = _a === void 0 ? function(obj, proto) {
+var _a3 = Object.setPrototypeOf;
+var setPrototypeOf = _a3 === void 0 ? function(obj, proto) {
   obj.__proto__ = proto;
   return obj;
-} : _a;
+} : _a3;
 var InvariantError = function(_super) {
   __extends(InvariantError2, _super);
   function InvariantError2(message) {
@@ -14970,7 +14979,7 @@ function setVerbosity(level) {
 function maybe(thunk) {
   try {
     return thunk();
-  } catch (_a5) {
+  } catch (_a7) {
   }
 }
 
@@ -14993,7 +15002,7 @@ var GLOBAL_KEY = [__, __].join("DEV");
 function getDEV() {
   try {
     return Boolean(__DEV__);
-  } catch (_a5) {
+  } catch (_a7) {
     Object.defineProperty(global_default, GLOBAL_KEY, {
       value: maybe(function() {
         return "development";
@@ -15063,13 +15072,13 @@ function removeTemporaryGlobals() {
 removeTemporaryGlobals();
 
 // node_modules/@apollo/client/utilities/graphql/directives.js
-function shouldInclude(_a5, variables) {
-  var directives = _a5.directives;
+function shouldInclude(_a7, variables) {
+  var directives = _a7.directives;
   if (!directives || !directives.length) {
     return true;
   }
-  return getInclusionDirectives(directives).every(function(_a6) {
-    var directive = _a6.directive, ifArgument = _a6.ifArgument;
+  return getInclusionDirectives(directives).every(function(_a8) {
+    var directive = _a8.directive, ifArgument = _a8.ifArgument;
     var evaledValue = false;
     if (ifArgument.value.kind === "Variable") {
       evaledValue = variables && variables[ifArgument.value.name.value];
@@ -15097,8 +15106,8 @@ function hasDirectives(names, root2) {
 function hasClientExports(document2) {
   return document2 && hasDirectives(["client"], document2) && hasDirectives(["export"], document2);
 }
-function isInclusionDirective(_a5) {
-  var value = _a5.name.value;
+function isInclusionDirective(_a7) {
+  var value = _a7.name.value;
   return value === "skip" || value === "include";
 }
 function getInclusionDirectives(directives) {
@@ -15257,8 +15266,8 @@ function storeKeyNameFromField(field, variables) {
     field.directives.forEach(function(directive) {
       directivesObj[directive.name.value] = {};
       if (directive.arguments) {
-        directive.arguments.forEach(function(_a5) {
-          var name = _a5.name, value = _a5.value;
+        directive.arguments.forEach(function(_a7) {
+          var name = _a7.name, value = _a7.value;
           return valueToObjectRepresentation(directivesObj[directive.name.value], name, value, variables);
         });
       }
@@ -15267,8 +15276,8 @@ function storeKeyNameFromField(field, variables) {
   var argObj = null;
   if (field.arguments && field.arguments.length) {
     argObj = {};
-    field.arguments.forEach(function(_a5) {
-      var name = _a5.name, value = _a5.value;
+    field.arguments.forEach(function(_a7) {
+      var name = _a7.name, value = _a7.value;
       return valueToObjectRepresentation(argObj, name, value, variables);
     });
   }
@@ -15335,8 +15344,8 @@ function stringifyReplacer(_key, value) {
 function argumentsObjectFromField(field, variables) {
   if (field.arguments && field.arguments.length) {
     var argObj_1 = {};
-    field.arguments.forEach(function(_a5) {
-      var name = _a5.name, value = _a5.value;
+    field.arguments.forEach(function(_a7) {
+      var name = _a7.name, value = _a7.value;
       return valueToObjectRepresentation(argObj_1, name, value, variables);
     });
     return argObj_1;
@@ -15350,8 +15359,8 @@ function getTypenameFromResult(result2, selectionSet, fragmentMap) {
   if (typeof result2.__typename === "string") {
     return result2.__typename;
   }
-  for (var _i = 0, _a5 = selectionSet.selections; _i < _a5.length; _i++) {
-    var selection = _a5[_i];
+  for (var _i = 0, _a7 = selectionSet.selections; _i < _a7.length; _i++) {
+    var selection = _a7[_i];
     if (isField(selection)) {
       if (selection.name.value === "__typename") {
         return result2[resultKeyNameFromField(selection)];
@@ -15418,8 +15427,8 @@ function getFragmentDefinition(doc) {
 function getMainDefinition(queryDoc) {
   checkDocument(queryDoc);
   var fragmentDefinition;
-  for (var _i = 0, _a5 = queryDoc.definitions; _i < _a5.length; _i++) {
-    var definition = _a5[_i];
+  for (var _i = 0, _a7 = queryDoc.definitions; _i < _a7.length; _i++) {
+    var definition = _a7[_i];
     if (definition.kind === "OperationDefinition") {
       var operation = definition.operation;
       if (operation === "query" || operation === "mutation" || operation === "subscription") {
@@ -16739,8 +16748,8 @@ function validateOperation(operation) {
     "extensions",
     "context"
   ];
-  for (var _i = 0, _a5 = Object.keys(operation); _i < _a5.length; _i++) {
-    var key = _a5[_i];
+  for (var _i = 0, _a7 = Object.keys(operation); _i < _a7.length; _i++) {
+    var key = _a7[_i];
     if (OPERATION_FIELDS.indexOf(key) < 0) {
       throw __DEV__ ? new InvariantError("illegal argument: " + key) : new InvariantError(29);
     }
@@ -17074,7 +17083,7 @@ var createHttpLink = function(linkOptions) {
   if (linkOptions === void 0) {
     linkOptions = {};
   }
-  var _a5 = linkOptions.uri, uri = _a5 === void 0 ? "/graphql" : _a5, preferredFetch = linkOptions.fetch, includeExtensions = linkOptions.includeExtensions, useGETForQueries = linkOptions.useGETForQueries, _b = linkOptions.includeUnusedVariables, includeUnusedVariables = _b === void 0 ? false : _b, requestOptions = __rest(linkOptions, ["uri", "fetch", "includeExtensions", "useGETForQueries", "includeUnusedVariables"]);
+  var _a7 = linkOptions.uri, uri = _a7 === void 0 ? "/graphql" : _a7, preferredFetch = linkOptions.fetch, includeExtensions = linkOptions.includeExtensions, useGETForQueries = linkOptions.useGETForQueries, _b = linkOptions.includeUnusedVariables, includeUnusedVariables = _b === void 0 ? false : _b, requestOptions = __rest(linkOptions, ["uri", "fetch", "includeExtensions", "useGETForQueries", "includeUnusedVariables"]);
   if (__DEV__) {
     checkFetcher(preferredFetch || backupFetch);
   }
@@ -17089,7 +17098,7 @@ var createHttpLink = function(linkOptions) {
     var context = operation.getContext();
     var clientAwarenessHeaders = {};
     if (context.clientAwareness) {
-      var _a6 = context.clientAwareness, name_1 = _a6.name, version2 = _a6.version;
+      var _a8 = context.clientAwareness, name_1 = _a8.name, version2 = _a8.version;
       if (name_1) {
         clientAwarenessHeaders["apollographql-client-name"] = name_1;
       }
@@ -17189,9 +17198,9 @@ var HttpLink = function(_super) {
 }(ApolloLink);
 
 // node_modules/@wry/equality/lib/equality.esm.js
-var _a2 = Object.prototype;
-var toString5 = _a2.toString;
-var hasOwnProperty4 = _a2.hasOwnProperty;
+var _a4 = Object.prototype;
+var toString5 = _a4.toString;
+var hasOwnProperty4 = _a4.hasOwnProperty;
 var fnToStr = Function.prototype.toString;
 var previousComparisons = new Map();
 function equal(a2, b2) {
@@ -17258,7 +17267,7 @@ function check(a2, b2) {
         var info = aIterator.next();
         if (info.done)
           break;
-        var _a5 = info.value, aKey = _a5[0], aValue = _a5[1];
+        var _a7 = info.value, aKey = _a7[0], aValue = _a7[1];
         if (!b2.has(aKey)) {
           return false;
         }
@@ -17325,9 +17334,9 @@ function previouslyCompared(a2, b2) {
 var defaultMakeData = function() {
   return Object.create(null);
 };
-var _a3 = Array.prototype;
-var forEach = _a3.forEach;
-var slice = _a3.slice;
+var _a5 = Array.prototype;
+var forEach = _a5.forEach;
+var slice = _a5.slice;
 var Trie = function() {
   function Trie2(weakness, makeData) {
     if (weakness === void 0) {
@@ -17410,10 +17419,10 @@ var makeSlotClass = function() {
       }
     };
     Slot2.prototype.withValue = function(value, callback, args, thisArg) {
-      var _a5;
-      var slots = (_a5 = {
+      var _a7;
+      var slots = (_a7 = {
         __proto__: null
-      }, _a5[this.id] = value, _a5);
+      }, _a7[this.id] = value, _a7);
       var parent = currentContext;
       currentContext = { parent, slots };
       try {
@@ -17560,15 +17569,15 @@ var Cache = function() {
   return Cache3;
 }();
 var parentEntrySlot = new Slot();
-var _a4;
+var _a6;
 var hasOwnProperty5 = Object.prototype.hasOwnProperty;
-var toArray = (_a4 = Array.from, _a4 === void 0 ? function(collection) {
+var toArray = (_a6 = Array.from, _a6 === void 0 ? function(collection) {
   var array = [];
   collection.forEach(function(item) {
     return array.push(item);
   });
   return array;
-} : _a4);
+} : _a6);
 function maybeUnsubscribe(entryOrDep) {
   var unsubscribe = entryOrDep.unsubscribe;
   if (typeof unsubscribe === "function") {
@@ -17945,15 +17954,15 @@ var ApolloCache = function() {
     }
     return this.read(__assign(__assign({}, options), { query: this.getFragmentDoc(options.fragment, options.fragmentName), rootId: options.id, optimistic }));
   };
-  ApolloCache2.prototype.writeQuery = function(_a5) {
-    var id = _a5.id, data = _a5.data, options = __rest(_a5, ["id", "data"]);
+  ApolloCache2.prototype.writeQuery = function(_a7) {
+    var id = _a7.id, data = _a7.data, options = __rest(_a7, ["id", "data"]);
     return this.write(Object.assign(options, {
       dataId: id || "ROOT_QUERY",
       result: data
     }));
   };
-  ApolloCache2.prototype.writeFragment = function(_a5) {
-    var id = _a5.id, data = _a5.data, fragment = _a5.fragment, fragmentName = _a5.fragmentName, options = __rest(_a5, ["id", "data", "fragment", "fragmentName"]);
+  ApolloCache2.prototype.writeFragment = function(_a7) {
+    var id = _a7.id, data = _a7.data, fragment = _a7.fragment, fragmentName = _a7.fragmentName, options = __rest(_a7, ["id", "data", "fragment", "fragmentName"]);
     return this.write(Object.assign(options, {
       query: this.getFragmentDoc(fragment, fragmentName),
       dataId: id,
@@ -18181,12 +18190,12 @@ var EntityStore = function() {
     return false;
   };
   EntityStore2.prototype.delete = function(dataId, fieldName, args) {
-    var _a5;
+    var _a7;
     var storeObject = this.lookup(dataId);
     if (storeObject) {
       var typename = this.getFieldValue(storeObject, "__typename");
       var storeFieldName = fieldName && args ? this.policies.getStoreFieldName({ typename, fieldName, args }) : fieldName;
-      return this.modify(dataId, storeFieldName ? (_a5 = {}, _a5[storeFieldName] = delModifier, _a5) : delModifier);
+      return this.modify(dataId, storeFieldName ? (_a7 = {}, _a7[storeFieldName] = delModifier, _a7) : delModifier);
     }
     return false;
   };
@@ -18356,8 +18365,8 @@ function maybeDependOnExistenceOfEntity(store2, entityId) {
 (function(EntityStore2) {
   var Root = function(_super) {
     __extends(Root2, _super);
-    function Root2(_a5) {
-      var policies = _a5.policies, _b = _a5.resultCaching, resultCaching = _b === void 0 ? true : _b, seed = _a5.seed;
+    function Root2(_a7) {
+      var policies = _a7.policies, _b = _a7.resultCaching, resultCaching = _b === void 0 ? true : _b, seed = _a7.seed;
       var _this = _super.call(this, policies, new CacheGroup(resultCaching)) || this;
       _this.stump = new Stump(_this);
       _this.storageTrie = new Trie(canUseWeakMap);
@@ -18592,11 +18601,11 @@ var StoreReader = function() {
     this.config = __assign(__assign({}, config), { addTypename: config.addTypename !== false });
     this.canon = config.canon || new ObjectCanon();
     this.executeSelectionSet = wrap2(function(options) {
-      var _a5;
+      var _a7;
       var canonizeResults = options.context.canonizeResults;
       var peekArgs = execSelectionSetKeyArgs(options);
       peekArgs[3] = !canonizeResults;
-      var other = (_a5 = _this.executeSelectionSet).peek.apply(_a5, peekArgs);
+      var other = (_a7 = _this.executeSelectionSet).peek.apply(_a7, peekArgs);
       if (other) {
         if (canonizeResults) {
           return __assign(__assign({}, other), { result: _this.canon.admit(other.result) });
@@ -18619,8 +18628,8 @@ var StoreReader = function() {
       return _this.execSubSelectedArrayImpl(options);
     }, {
       max: this.config.resultCacheMaxSize,
-      makeCacheKey: function(_a5) {
-        var field = _a5.field, array = _a5.array, context = _a5.context;
+      makeCacheKey: function(_a7) {
+        var field = _a7.field, array = _a7.array, context = _a7.context;
         if (supportsResultCaching(context.store)) {
           return context.store.makeCacheKey(field, array, context.varString);
         }
@@ -18630,8 +18639,8 @@ var StoreReader = function() {
   StoreReader2.prototype.resetCanon = function() {
     this.canon = new ObjectCanon();
   };
-  StoreReader2.prototype.diffQueryAgainstStore = function(_a5) {
-    var store2 = _a5.store, query = _a5.query, _b = _a5.rootId, rootId = _b === void 0 ? "ROOT_QUERY" : _b, variables = _a5.variables, _c = _a5.returnPartialData, returnPartialData = _c === void 0 ? true : _c, _d = _a5.canonizeResults, canonizeResults = _d === void 0 ? true : _d;
+  StoreReader2.prototype.diffQueryAgainstStore = function(_a7) {
+    var store2 = _a7.store, query = _a7.query, _b = _a7.rootId, rootId = _b === void 0 ? "ROOT_QUERY" : _b, variables = _a7.variables, _c = _a7.returnPartialData, returnPartialData = _c === void 0 ? true : _c, _d = _a7.canonizeResults, canonizeResults = _d === void 0 ? true : _d;
     var policies = this.config.cache.policies;
     variables = __assign(__assign({}, getDefaultValues(getQueryDefinition(query))), variables);
     var rootRef = makeReference(rootId);
@@ -18669,9 +18678,9 @@ var StoreReader = function() {
     }
     return false;
   };
-  StoreReader2.prototype.execSelectionSetImpl = function(_a5) {
+  StoreReader2.prototype.execSelectionSetImpl = function(_a7) {
     var _this = this;
-    var selectionSet = _a5.selectionSet, objectOrReference = _a5.objectOrReference, enclosingRef = _a5.enclosingRef, context = _a5.context;
+    var selectionSet = _a7.selectionSet, objectOrReference = _a7.objectOrReference, enclosingRef = _a7.enclosingRef, context = _a7.context;
     if (isReference(objectOrReference) && !context.policies.rootTypenamesById[objectOrReference.__ref] && !context.store.has(objectOrReference.__ref)) {
       return {
         result: this.canon.empty,
@@ -18689,14 +18698,14 @@ var StoreReader = function() {
       return finalResult.missing || (finalResult.missing = []);
     }
     function handleMissing(result2) {
-      var _a6;
+      var _a8;
       if (result2.missing)
-        (_a6 = getMissing()).push.apply(_a6, result2.missing);
+        (_a8 = getMissing()).push.apply(_a8, result2.missing);
       return result2.result;
     }
     var workSet = new Set(selectionSet.selections);
     workSet.forEach(function(selection) {
-      var _a6;
+      var _a8;
       if (!shouldInclude(selection, variables))
         return;
       if (isField(selection)) {
@@ -18732,7 +18741,7 @@ var StoreReader = function() {
           }));
         }
         if (fieldValue !== void 0) {
-          objectsToMerge.push((_a6 = {}, _a6[resultName] = fieldValue, _a6));
+          objectsToMerge.push((_a8 = {}, _a8[resultName] = fieldValue, _a8));
         }
         invariant2(context.path.pop() === resultName);
       } else {
@@ -18747,9 +18756,9 @@ var StoreReader = function() {
     this.knownResults.set(finalResult.result, selectionSet);
     return finalResult;
   };
-  StoreReader2.prototype.execSubSelectedArrayImpl = function(_a5) {
+  StoreReader2.prototype.execSubSelectedArrayImpl = function(_a7) {
     var _this = this;
-    var field = _a5.field, array = _a5.array, enclosingRef = _a5.enclosingRef, context = _a5.context;
+    var field = _a7.field, array = _a7.array, enclosingRef = _a7.enclosingRef, context = _a7.context;
     var missing;
     function handleMissing(childResult, i2) {
       if (childResult.missing) {
@@ -18814,9 +18823,9 @@ var StoreWriter = function() {
     this.cache = cache2;
     this.reader = reader;
   }
-  StoreWriter2.prototype.writeToStore = function(store2, _a5) {
+  StoreWriter2.prototype.writeToStore = function(store2, _a7) {
     var _this = this;
-    var query = _a5.query, result2 = _a5.result, dataId = _a5.dataId, variables = _a5.variables, overwrite = _a5.overwrite;
+    var query = _a7.query, result2 = _a7.result, dataId = _a7.dataId, variables = _a7.variables, overwrite = _a7.overwrite;
     var operationDefinition = getOperationDefinition(query);
     var merger = makeProcessedFieldsMerger();
     variables = __assign(__assign({}, getDefaultValues(operationDefinition)), variables);
@@ -18843,8 +18852,8 @@ var StoreWriter = function() {
     if (!isReference(ref)) {
       throw __DEV__ ? new InvariantError("Could not identify object " + JSON.stringify(result2)) : new InvariantError(9);
     }
-    context.incomingById.forEach(function(_a6, dataId2) {
-      var fields = _a6.fields, mergeTree = _a6.mergeTree, selections = _a6.selections;
+    context.incomingById.forEach(function(_a8, dataId2) {
+      var fields = _a8.fields, mergeTree = _a8.mergeTree, selections = _a8.selections;
       var entityRef = makeReference(dataId2);
       if (mergeTree && mergeTree.map.size) {
         var applied = _this.applyMerges(mergeTree, entityRef, fields, context);
@@ -18878,9 +18887,9 @@ var StoreWriter = function() {
     store2.retain(ref.__ref);
     return ref;
   };
-  StoreWriter2.prototype.processSelectionSet = function(_a5) {
+  StoreWriter2.prototype.processSelectionSet = function(_a7) {
     var _this = this;
-    var dataId = _a5.dataId, result2 = _a5.result, selectionSet = _a5.selectionSet, context = _a5.context, mergeTree = _a5.mergeTree;
+    var dataId = _a7.dataId, result2 = _a7.result, selectionSet = _a7.selectionSet, context = _a7.context, mergeTree = _a7.mergeTree;
     var policies = this.cache.policies;
     var _b = policies.identify(result2, selectionSet, context.fragmentMap), id = _b[0], keyObject = _b[1];
     dataId = dataId || id;
@@ -18904,7 +18913,7 @@ var StoreWriter = function() {
     }
     var selections = new Set(selectionSet.selections);
     selections.forEach(function(selection) {
-      var _a6;
+      var _a8;
       if (!shouldInclude(selection, context.variables))
         return;
       if (isField(selection)) {
@@ -18941,7 +18950,7 @@ var StoreWriter = function() {
           } else {
             maybeRecycleChildMergeTree(mergeTree, storeFieldName);
           }
-          incomingFields = context.merge(incomingFields, (_a6 = {}, _a6[storeFieldName] = incomingValue, _a6));
+          incomingFields = context.merge(incomingFields, (_a8 = {}, _a8[storeFieldName] = incomingValue, _a8));
         } else if (!context.clientOnly && !addTypenameToDocument.added(selection)) {
           __DEV__ && invariant2.error(("Missing field '" + resultKeyNameFromField(selection) + "' while writing result " + JSON.stringify(result2, null, 2)).substring(0, 1e3));
         }
@@ -18991,7 +19000,7 @@ var StoreWriter = function() {
     });
   };
   StoreWriter2.prototype.applyMerges = function(mergeTree, existing, incoming, context, getStorageArgs) {
-    var _a5;
+    var _a7;
     var _this = this;
     if (mergeTree.map.size && !isReference(incoming)) {
       var e_1 = !Array.isArray(incoming) && (isReference(existing) || storeValueIsStoreObject(existing)) ? existing : void 0;
@@ -19028,15 +19037,15 @@ var StoreWriter = function() {
       }
     }
     if (mergeTree.info) {
-      return this.cache.policies.runMergeFunction(existing, incoming, mergeTree.info, context, getStorageArgs && (_a5 = context.store).getStorage.apply(_a5, getStorageArgs));
+      return this.cache.policies.runMergeFunction(existing, incoming, mergeTree.info, context, getStorageArgs && (_a7 = context.store).getStorage.apply(_a7, getStorageArgs));
     }
     return incoming;
   };
   return StoreWriter2;
 }();
 var emptyMergeTreePool = [];
-function getChildMergeTree(_a5, name) {
-  var map = _a5.map;
+function getChildMergeTree(_a7, name) {
+  var map = _a7.map;
   if (!map.has(name)) {
     map.set(name, emptyMergeTreePool.pop() || { map: new Map() });
   }
@@ -19066,8 +19075,8 @@ function mergeMergeTrees(left, right) {
 function mergeTreeIsEmpty(tree) {
   return !tree || !(tree.info || tree.map.size);
 }
-function maybeRecycleChildMergeTree(_a5, name) {
-  var map = _a5.map;
+function maybeRecycleChildMergeTree(_a7, name) {
+  var map = _a7.map;
   var childTree = map.get(name);
   if (childTree && mergeTreeIsEmpty(childTree)) {
     emptyMergeTreePool.push(childTree);
@@ -19189,8 +19198,8 @@ getStoreKeyName.setStringify(canonicalStringify);
 function argsFromFieldSpecifier(spec) {
   return spec.args !== void 0 ? spec.args : spec.field ? argumentsObjectFromField(spec.field, spec.variables) : null;
 }
-var defaultDataIdFromObject = function(_a5, context) {
-  var __typename = _a5.__typename, id = _a5.id, _id = _a5._id;
+var defaultDataIdFromObject = function(_a7, context) {
+  var __typename = _a7.__typename, id = _a7.id, _id = _a7._id;
   if (typeof __typename === "string") {
     if (context) {
       context.keyObject = id !== void 0 ? { id } : _id !== void 0 ? { _id } : void 0;
@@ -19208,8 +19217,8 @@ var nullKeyFieldsFn = function() {
 var simpleKeyArgsFn = function(_args, context) {
   return context.fieldName;
 };
-var mergeTrueFn = function(existing, incoming, _a5) {
-  var mergeObjects = _a5.mergeObjects;
+var mergeTrueFn = function(existing, incoming, _a7) {
+  var mergeObjects = _a7.mergeObjects;
   return mergeObjects(existing, incoming);
 };
 var mergeFalseFn = function(_3, incoming) {
@@ -19265,7 +19274,7 @@ var Policies = function() {
   Policies2.prototype.addTypePolicies = function(typePolicies) {
     var _this = this;
     Object.keys(typePolicies).forEach(function(typename) {
-      var _a5 = typePolicies[typename], queryType = _a5.queryType, mutationType = _a5.mutationType, subscriptionType = _a5.subscriptionType, incoming = __rest(_a5, ["queryType", "mutationType", "subscriptionType"]);
+      var _a7 = typePolicies[typename], queryType = _a7.queryType, mutationType = _a7.mutationType, subscriptionType = _a7.subscriptionType, incoming = __rest(_a7, ["queryType", "mutationType", "subscriptionType"]);
       if (queryType)
         _this.setRootTypename("Query", typename);
       if (mutationType)
@@ -19344,7 +19353,7 @@ var Policies = function() {
       var supertypes = this.supertypeMap.get(typename);
       if (supertypes && supertypes.size) {
         supertypes.forEach(function(supertype) {
-          var _a5 = _this.getTypePolicy(supertype), fields = _a5.fields, rest = __rest(_a5, ["fields"]);
+          var _a7 = _this.getTypePolicy(supertype), fields = _a7.fields, rest = __rest(_a7, ["fields"]);
           Object.assign(policy_1, rest);
           Object.assign(policy_1.fields, fields);
         });
@@ -19484,8 +19493,8 @@ var Policies = function() {
     }
     return merge;
   };
-  Policies2.prototype.runMergeFunction = function(existing, incoming, _a5, context, storage) {
-    var field = _a5.field, typename = _a5.typename, merge = _a5.merge;
+  Policies2.prototype.runMergeFunction = function(existing, incoming, _a7, context, storage) {
+    var field = _a7.field, typename = _a7.typename, merge = _a7.merge;
     if (merge === mergeTrueFn) {
       return makeMergeObjectsFunction(context.store)(existing, incoming);
     }
@@ -19503,7 +19512,7 @@ function makeFieldFunctionOptions(policies, objectOrReference, fieldSpec, contex
   var storeFieldName = policies.getStoreFieldName(fieldSpec);
   var fieldName = fieldNameFromStoreName(storeFieldName);
   var variables = fieldSpec.variables || context.variables;
-  var _a5 = context.store, toReference = _a5.toReference, canRead = _a5.canRead;
+  var _a7 = context.store, toReference = _a7.toReference, canRead = _a7.canRead;
   return {
     args: argsFromFieldSpecifier(fieldSpec),
     field: fieldSpec.field || null,
@@ -19720,7 +19729,7 @@ var InMemoryCache = function(_super) {
     return (optimistic ? this.optimisticData : this.data).extract();
   };
   InMemoryCache2.prototype.read = function(options) {
-    var _a5 = options.returnPartialData, returnPartialData = _a5 === void 0 ? false : _a5;
+    var _a7 = options.returnPartialData, returnPartialData = _a7 === void 0 ? false : _a7;
     try {
       return this.storeReader.diffQueryAgainstStore(__assign(__assign({}, options), { store: options.optimistic ? this.optimisticData : this.data, config: this.config, returnPartialData })).result || null;
     } catch (e) {
@@ -19825,9 +19834,9 @@ var InMemoryCache = function(_super) {
   };
   InMemoryCache2.prototype.batch = function(options) {
     var _this = this;
-    var update = options.update, _a5 = options.optimistic, optimistic = _a5 === void 0 ? true : _a5, removeOptimistic = options.removeOptimistic, onWatchUpdated = options.onWatchUpdated;
+    var update = options.update, _a7 = options.optimistic, optimistic = _a7 === void 0 ? true : _a7, removeOptimistic = options.removeOptimistic, onWatchUpdated = options.onWatchUpdated;
     var perform = function(layer) {
-      var _a6 = _this, data = _a6.data, optimisticData = _a6.optimisticData;
+      var _a8 = _this, data = _a8.data, optimisticData = _a8.optimisticData;
       ++_this.txCount;
       if (layer) {
         _this.data = _this.optimisticData = layer;
@@ -19947,8 +19956,8 @@ var generateErrorMessage = function(err) {
 };
 var ApolloError = function(_super) {
   __extends(ApolloError2, _super);
-  function ApolloError2(_a5) {
-    var graphQLErrors = _a5.graphQLErrors, clientErrors = _a5.clientErrors, networkError = _a5.networkError, errorMessage = _a5.errorMessage, extraInfo = _a5.extraInfo;
+  function ApolloError2(_a7) {
+    var graphQLErrors = _a7.graphQLErrors, clientErrors = _a7.clientErrors, networkError = _a7.networkError, errorMessage = _a7.errorMessage, extraInfo = _a7.extraInfo;
     var _this = _super.call(this, errorMessage) || this;
     _this.graphQLErrors = graphQLErrors || [];
     _this.clientErrors = clientErrors || [];
@@ -19980,15 +19989,15 @@ function isNetworkRequestInFlight(networkStatus) {
 var warnedAboutUpdateQuery = false;
 var ObservableQuery = function(_super) {
   __extends(ObservableQuery2, _super);
-  function ObservableQuery2(_a5) {
-    var queryManager = _a5.queryManager, queryInfo = _a5.queryInfo, options = _a5.options;
+  function ObservableQuery2(_a7) {
+    var queryManager = _a7.queryManager, queryInfo = _a7.queryInfo, options = _a7.options;
     var _this = _super.call(this, function(observer) {
       try {
         var subObserver = observer._subscription._observer;
         if (subObserver && !subObserver.error) {
           subObserver.error = defaultSubscriptionObserverErrorCallback;
         }
-      } catch (_a6) {
+      } catch (_a8) {
       }
       var first = !_this.observers.size;
       _this.observers.add(observer);
@@ -20061,7 +20070,7 @@ var ObservableQuery = function(_super) {
       if (equal(result2.data, {})) {
         result2.data = void 0;
       }
-      var _a5 = this.options.fetchPolicy, fetchPolicy = _a5 === void 0 ? "cache-first" : _a5;
+      var _a7 = this.options.fetchPolicy, fetchPolicy = _a7 === void 0 ? "cache-first" : _a7;
       if (diff.complete) {
         if (result2.networkStatus === NetworkStatus.loading && (fetchPolicy === "cache-first" || fetchPolicy === "cache-only")) {
           result2.networkStatus = NetworkStatus.ready;
@@ -20163,8 +20172,8 @@ var ObservableQuery = function(_super) {
       next: function(subscriptionData) {
         var updateQuery = options.updateQuery;
         if (updateQuery) {
-          _this.updateQuery(function(previous, _a5) {
-            var variables = _a5.variables;
+          _this.updateQuery(function(previous, _a7) {
+            var variables = _a7.variables;
             return updateQuery(previous, {
               subscriptionData,
               variables
@@ -20240,7 +20249,7 @@ var ObservableQuery = function(_super) {
     if (this.queryManager.ssrMode) {
       return;
     }
-    var _a5 = this, pollingInfo = _a5.pollingInfo, pollInterval = _a5.options.pollInterval;
+    var _a7 = this, pollingInfo = _a7.pollingInfo, pollInterval = _a7.options.pollInterval;
     if (!pollInterval) {
       if (pollingInfo) {
         clearTimeout(pollingInfo.timeout);
@@ -20368,7 +20377,7 @@ function logMissingFieldErrors(missing) {
   }
 }
 function applyNextFetchPolicy(options) {
-  var _a5 = options.fetchPolicy, fetchPolicy = _a5 === void 0 ? "cache-first" : _a5, nextFetchPolicy = options.nextFetchPolicy;
+  var _a7 = options.fetchPolicy, fetchPolicy = _a7 === void 0 ? "cache-first" : _a7, nextFetchPolicy = options.nextFetchPolicy;
   if (nextFetchPolicy) {
     options.fetchPolicy = typeof nextFetchPolicy === "function" ? nextFetchPolicy.call(options, fetchPolicy) : nextFetchPolicy;
   }
@@ -20376,8 +20385,8 @@ function applyNextFetchPolicy(options) {
 
 // node_modules/@apollo/client/core/LocalState.js
 var LocalState = function() {
-  function LocalState2(_a5) {
-    var cache2 = _a5.cache, client2 = _a5.client, resolvers = _a5.resolvers, fragmentMatcher = _a5.fragmentMatcher;
+  function LocalState2(_a7) {
+    var cache2 = _a7.cache, client2 = _a7.client, resolvers = _a7.resolvers, fragmentMatcher = _a7.fragmentMatcher;
     this.cache = cache2;
     if (client2) {
       this.client = client2;
@@ -20407,8 +20416,8 @@ var LocalState = function() {
   LocalState2.prototype.getResolvers = function() {
     return this.resolvers || {};
   };
-  LocalState2.prototype.runResolvers = function(_a5) {
-    var document2 = _a5.document, remoteResult = _a5.remoteResult, context = _a5.context, variables = _a5.variables, _b = _a5.onlyRunForcedResolvers, onlyRunForcedResolvers = _b === void 0 ? false : _b;
+  LocalState2.prototype.runResolvers = function(_a7) {
+    var document2 = _a7.document, remoteResult = _a7.remoteResult, context = _a7.context, variables = _a7.variables, _b = _a7.onlyRunForcedResolvers, onlyRunForcedResolvers = _b === void 0 ? false : _b;
     return __awaiter(this, void 0, void 0, function() {
       return __generator(this, function(_c) {
         if (document2) {
@@ -20451,7 +20460,7 @@ var LocalState = function() {
       context = {};
     }
     return __awaiter(this, void 0, void 0, function() {
-      return __generator(this, function(_a5) {
+      return __generator(this, function(_a7) {
         if (document2) {
           return [2, this.resolveDocument(document2, this.buildRootValueFromCache(document2, variables) || {}, this.prepareContext(context), variables).then(function(data) {
             return __assign(__assign({}, variables), data.exportedVariables);
@@ -20503,14 +20512,14 @@ var LocalState = function() {
       onlyRunForcedResolvers = false;
     }
     return __awaiter(this, void 0, void 0, function() {
-      var mainDefinition, fragments, fragmentMap, definitionOperation, defaultOperationType, _a5, cache2, client2, execContext;
+      var mainDefinition, fragments, fragmentMap, definitionOperation, defaultOperationType, _a7, cache2, client2, execContext;
       return __generator(this, function(_b) {
         mainDefinition = getMainDefinition(document2);
         fragments = getFragmentDefinitions(document2);
         fragmentMap = createFragmentMap(fragments);
         definitionOperation = mainDefinition.operation;
         defaultOperationType = definitionOperation ? definitionOperation.charAt(0).toUpperCase() + definitionOperation.slice(1) : "Query";
-        _a5 = this, cache2 = _a5.cache, client2 = _a5.client;
+        _a7 = this, cache2 = _a7.cache, client2 = _a7.client;
         execContext = {
           fragmentMap,
           context: __assign(__assign({}, context), { cache: cache2, client: client2 }),
@@ -20533,21 +20542,21 @@ var LocalState = function() {
     return __awaiter(this, void 0, void 0, function() {
       var fragmentMap, context, variables, resultsToMerge, execute2;
       var _this = this;
-      return __generator(this, function(_a5) {
+      return __generator(this, function(_a7) {
         fragmentMap = execContext.fragmentMap, context = execContext.context, variables = execContext.variables;
         resultsToMerge = [rootValue];
         execute2 = function(selection) {
           return __awaiter(_this, void 0, void 0, function() {
             var fragment, typeCondition;
-            return __generator(this, function(_a6) {
+            return __generator(this, function(_a8) {
               if (!shouldInclude(selection, variables)) {
                 return [2];
               }
               if (isField(selection)) {
                 return [2, this.resolveField(selection, rootValue, execContext).then(function(fieldResult) {
-                  var _a7;
+                  var _a9;
                   if (typeof fieldResult !== "undefined") {
-                    resultsToMerge.push((_a7 = {}, _a7[resultKeyNameFromField(selection)] = fieldResult, _a7));
+                    resultsToMerge.push((_a9 = {}, _a9[resultKeyNameFromField(selection)] = fieldResult, _a9));
                   }
                 })];
               }
@@ -20579,7 +20588,7 @@ var LocalState = function() {
     return __awaiter(this, void 0, void 0, function() {
       var variables, fieldName, aliasedFieldName, aliasUsed, defaultResult, resultPromise, resolverType, resolverMap, resolve;
       var _this = this;
-      return __generator(this, function(_a5) {
+      return __generator(this, function(_a7) {
         variables = execContext.variables;
         fieldName = field.name.value;
         aliasedFieldName = resultKeyNameFromField(field);
@@ -20922,8 +20931,8 @@ function shouldWriteResult(result2, errorPolicy) {
 // node_modules/@apollo/client/core/QueryManager.js
 var hasOwnProperty6 = Object.prototype.hasOwnProperty;
 var QueryManager = function() {
-  function QueryManager2(_a5) {
-    var cache2 = _a5.cache, link = _a5.link, _b = _a5.queryDeduplication, queryDeduplication = _b === void 0 ? false : _b, onBroadcast = _a5.onBroadcast, _c = _a5.ssrMode, ssrMode = _c === void 0 ? false : _c, _d = _a5.clientAwareness, clientAwareness = _d === void 0 ? {} : _d, localState = _a5.localState, assumeImmutableResults = _a5.assumeImmutableResults;
+  function QueryManager2(_a7) {
+    var cache2 = _a7.cache, link = _a7.link, _b = _a7.queryDeduplication, queryDeduplication = _b === void 0 ? false : _b, onBroadcast = _a7.onBroadcast, _c = _a7.ssrMode, ssrMode = _c === void 0 ? false : _c, _d = _a7.clientAwareness, clientAwareness = _d === void 0 ? {} : _d, localState = _a7.localState, assumeImmutableResults = _a7.assumeImmutableResults;
     this.clientAwareness = {};
     this.queries = new Map();
     this.fetchCancelFns = new Map();
@@ -20956,8 +20965,8 @@ var QueryManager = function() {
     });
     this.fetchCancelFns.clear();
   };
-  QueryManager2.prototype.mutate = function(_a5) {
-    var mutation = _a5.mutation, variables = _a5.variables, optimisticResponse = _a5.optimisticResponse, updateQueries = _a5.updateQueries, _b = _a5.refetchQueries, refetchQueries = _b === void 0 ? [] : _b, _c = _a5.awaitRefetchQueries, awaitRefetchQueries = _c === void 0 ? false : _c, updateWithProxyFn = _a5.update, onQueryUpdated = _a5.onQueryUpdated, _d = _a5.errorPolicy, errorPolicy = _d === void 0 ? "none" : _d, _e = _a5.fetchPolicy, fetchPolicy = _e === void 0 ? "network-only" : _e, keepRootFields = _a5.keepRootFields, context = _a5.context;
+  QueryManager2.prototype.mutate = function(_a7) {
+    var mutation = _a7.mutation, variables = _a7.variables, optimisticResponse = _a7.optimisticResponse, updateQueries = _a7.updateQueries, _b = _a7.refetchQueries, refetchQueries = _b === void 0 ? [] : _b, _c = _a7.awaitRefetchQueries, awaitRefetchQueries = _c === void 0 ? false : _c, updateWithProxyFn = _a7.update, onQueryUpdated = _a7.onQueryUpdated, _d = _a7.errorPolicy, errorPolicy = _d === void 0 ? "none" : _d, _e = _a7.fetchPolicy, fetchPolicy = _e === void 0 ? "network-only" : _e, keepRootFields = _a7.keepRootFields, context = _a7.context;
     return __awaiter(this, void 0, void 0, function() {
       var mutationId, mutationStoreValue, self2;
       return __generator(this, function(_f) {
@@ -21071,8 +21080,8 @@ var QueryManager = function() {
       });
       var updateQueries_1 = mutation.updateQueries;
       if (updateQueries_1) {
-        this.queries.forEach(function(_a5, queryId) {
-          var observableQuery = _a5.observableQuery;
+        this.queries.forEach(function(_a7, queryId) {
+          var observableQuery = _a7.observableQuery;
           var queryName = observableQuery && observableQuery.queryName;
           if (!queryName || !hasOwnProperty6.call(updateQueries_1, queryName)) {
             return;
@@ -21134,8 +21143,8 @@ var QueryManager = function() {
           if (!skipCache && !mutation.keepRootFields) {
             cache3.modify({
               id: "ROOT_MUTATION",
-              fields: function(value, _a5) {
-                var fieldName = _a5.fieldName, DELETE2 = _a5.DELETE;
+              fields: function(value, _a7) {
+                var fieldName = _a7.fieldName, DELETE2 = _a7.DELETE;
                 return fieldName === "__typename" ? value : DELETE2;
               }
             });
@@ -21314,8 +21323,8 @@ var QueryManager = function() {
         }
       });
     }
-    this.queries.forEach(function(_a5, queryId) {
-      var oq = _a5.observableQuery, document2 = _a5.document;
+    this.queries.forEach(function(_a7, queryId) {
+      var oq = _a7.observableQuery, document2 = _a7.document;
       if (oq) {
         if (include === "all") {
           queries.set(queryId, oq);
@@ -21380,9 +21389,9 @@ var QueryManager = function() {
   QueryManager2.prototype.setObservableQuery = function(observableQuery) {
     this.getQuery(observableQuery.queryId).setObservableQuery(observableQuery);
   };
-  QueryManager2.prototype.startGraphQLSubscription = function(_a5) {
+  QueryManager2.prototype.startGraphQLSubscription = function(_a7) {
     var _this = this;
-    var query = _a5.query, fetchPolicy = _a5.fetchPolicy, errorPolicy = _a5.errorPolicy, variables = _a5.variables, _b = _a5.context, context = _b === void 0 ? {} : _b;
+    var query = _a7.query, fetchPolicy = _a7.fetchPolicy, errorPolicy = _a7.errorPolicy, variables = _a7.variables, _b = _a7.context, context = _b === void 0 ? {} : _b;
     query = this.transform(query).document;
     variables = this.getVariables(query, variables);
     var makeObservable = function(variables2) {
@@ -21445,9 +21454,9 @@ var QueryManager = function() {
   };
   QueryManager2.prototype.getObservableFromLink = function(query, context, variables, deduplication) {
     var _this = this;
-    var _a5;
+    var _a7;
     if (deduplication === void 0) {
-      deduplication = (_a5 = context === null || context === void 0 ? void 0 : context.queryDeduplication) !== null && _a5 !== void 0 ? _a5 : this.queryDeduplication;
+      deduplication = (_a7 = context === null || context === void 0 ? void 0 : context.queryDeduplication) !== null && _a7 !== void 0 ? _a7 : this.queryDeduplication;
     }
     var observable2;
     var serverQuery = this.transform(query).serverQuery;
@@ -21538,7 +21547,7 @@ var QueryManager = function() {
     var query = this.transform(options.query).document;
     var variables = this.getVariables(query, options.variables);
     var queryInfo = this.getQuery(queryId);
-    var _a5 = options.fetchPolicy, fetchPolicy = _a5 === void 0 ? "cache-first" : _a5, _b = options.errorPolicy, errorPolicy = _b === void 0 ? "none" : _b, _c = options.returnPartialData, returnPartialData = _c === void 0 ? false : _c, _d = options.notifyOnNetworkStatusChange, notifyOnNetworkStatusChange = _d === void 0 ? false : _d, _e = options.context, context = _e === void 0 ? {} : _e;
+    var _a7 = options.fetchPolicy, fetchPolicy = _a7 === void 0 ? "cache-first" : _a7, _b = options.errorPolicy, errorPolicy = _b === void 0 ? "none" : _b, _c = options.returnPartialData, returnPartialData = _c === void 0 ? false : _c, _d = options.notifyOnNetworkStatusChange, notifyOnNetworkStatusChange = _d === void 0 ? false : _d, _e = options.context, context = _e === void 0 ? {} : _e;
     var normalized = Object.assign({}, options, {
       query,
       variables,
@@ -21564,9 +21573,9 @@ var QueryManager = function() {
     });
     return concast;
   };
-  QueryManager2.prototype.refetchQueries = function(_a5) {
+  QueryManager2.prototype.refetchQueries = function(_a7) {
     var _this = this;
-    var updateCache = _a5.updateCache, include = _a5.include, _b = _a5.optimistic, optimistic = _b === void 0 ? false : _b, _c = _a5.removeOptimistic, removeOptimistic = _c === void 0 ? optimistic ? makeUniqueId("refetchQueries") : void 0 : _c, onQueryUpdated = _a5.onQueryUpdated;
+    var updateCache = _a7.updateCache, include = _a7.include, _b = _a7.optimistic, optimistic = _b === void 0 ? false : _b, _c = _a7.removeOptimistic, removeOptimistic = _c === void 0 ? optimistic ? makeUniqueId("refetchQueries") : void 0 : _c, onQueryUpdated = _a7.onQueryUpdated;
     var includedQueriesById = new Map();
     if (include) {
       this.getObservableQueries(include).forEach(function(oq, queryId) {
@@ -21604,8 +21613,8 @@ var QueryManager = function() {
       });
     }
     if (includedQueriesById.size) {
-      includedQueriesById.forEach(function(_a6, queryId) {
-        var oq = _a6.oq, lastDiff = _a6.lastDiff, diff = _a6.diff;
+      includedQueriesById.forEach(function(_a8, queryId) {
+        var oq = _a8.oq, lastDiff = _a8.lastDiff, diff = _a8.diff;
         var result2;
         if (onQueryUpdated) {
           if (!diff) {
@@ -21631,9 +21640,9 @@ var QueryManager = function() {
     }
     return results;
   };
-  QueryManager2.prototype.fetchQueryByPolicy = function(queryInfo, _a5, networkStatus) {
+  QueryManager2.prototype.fetchQueryByPolicy = function(queryInfo, _a7, networkStatus) {
     var _this = this;
-    var query = _a5.query, variables = _a5.variables, fetchPolicy = _a5.fetchPolicy, refetchWritePolicy = _a5.refetchWritePolicy, errorPolicy = _a5.errorPolicy, returnPartialData = _a5.returnPartialData, context = _a5.context, notifyOnNetworkStatusChange = _a5.notifyOnNetworkStatusChange;
+    var query = _a7.query, variables = _a7.variables, fetchPolicy = _a7.fetchPolicy, refetchWritePolicy = _a7.refetchWritePolicy, errorPolicy = _a7.errorPolicy, returnPartialData = _a7.returnPartialData, context = _a7.context, notifyOnNetworkStatusChange = _a7.notifyOnNetworkStatusChange;
     var oldNetworkStatus = queryInfo.networkStatus;
     queryInfo.init({
       document: query,
@@ -21761,7 +21770,7 @@ var ApolloClient = function() {
     this.defaultOptions = {};
     this.resetStoreCallbacks = [];
     this.clearStoreCallbacks = [];
-    var uri = options.uri, credentials = options.credentials, headers = options.headers, cache2 = options.cache, _a5 = options.ssrMode, ssrMode = _a5 === void 0 ? false : _a5, _b = options.ssrForceFetchDelay, ssrForceFetchDelay = _b === void 0 ? 0 : _b, _c = options.connectToDevTools, connectToDevTools = _c === void 0 ? typeof window === "object" && !window.__APOLLO_CLIENT__ && __DEV__ : _c, _d = options.queryDeduplication, queryDeduplication = _d === void 0 ? true : _d, defaultOptions2 = options.defaultOptions, _e = options.assumeImmutableResults, assumeImmutableResults = _e === void 0 ? false : _e, resolvers = options.resolvers, typeDefs = options.typeDefs, fragmentMatcher = options.fragmentMatcher, clientAwarenessName = options.name, clientAwarenessVersion = options.version;
+    var uri = options.uri, credentials = options.credentials, headers = options.headers, cache2 = options.cache, _a7 = options.ssrMode, ssrMode = _a7 === void 0 ? false : _a7, _b = options.ssrForceFetchDelay, ssrForceFetchDelay = _b === void 0 ? 0 : _b, _c = options.connectToDevTools, connectToDevTools = _c === void 0 ? typeof window === "object" && !window.__APOLLO_CLIENT__ && __DEV__ : _c, _d = options.queryDeduplication, queryDeduplication = _d === void 0 ? true : _d, defaultOptions2 = options.defaultOptions, _e = options.assumeImmutableResults, assumeImmutableResults = _e === void 0 ? false : _e, resolvers = options.resolvers, typeDefs = options.typeDefs, fragmentMatcher = options.fragmentMatcher, clientAwarenessName = options.name, clientAwarenessVersion = options.version;
     var link = options.link;
     if (!link) {
       link = uri ? new HttpLink({ uri, credentials, headers }) : ApolloLink.empty();
