@@ -1,9 +1,13 @@
 {
   "name": "@aha-app/mvc",
-  "version": "0.9.4",
+  "version": "0.10.0",
   "description": "Simple MVC framework using React for the view and GraphQL for the models.",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs.js",
   "type": "module",
+  "exports": {
+    "import": "./dist/index.esm.js",
+    "require": "./dist/index.cjs.js"
+  },
   "scripts": {
     "build": "node config/build.js"
   },
