@@ -1,5 +1,7 @@
 # mvc: A simple MVC framework with React views
 
+"Have your state and mutate it too"
+
 This framework combines other libraries to provide a Model-View-Controller (MVC) 
 architecture for code in the browser. The key libraries are:
 
