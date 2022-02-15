@@ -9,7 +9,7 @@
     "require": "./dist/index.cjs.js"
   },
   "scripts": {
-    "build": "node config/build.js"
+    "build": "node config/build.js && cp src/index.d.ts dist/"
   },
   "repository": {
     "type": "git",
