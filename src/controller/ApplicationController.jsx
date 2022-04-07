@@ -90,6 +90,11 @@ class ApplicationController {
       this.state = store(_.cloneDeep(this.constructor.initialState));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
+
+      // If this controller has routing then bring the state and browser into sync.
+      if (this.router) {
+        this.router.navigateSync();
+      }
     } else {
       this.changeProps(initialArgs);
     }

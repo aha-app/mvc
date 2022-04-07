@@ -10034,6 +10034,9 @@ var ApplicationController = class {
       if (this.initialize)
         this.initialize(initialArgs);
       this.initialized = true;
+      if (this.router) {
+        this.router.navigateSync();
+      }
     } else {
       this.changeProps(initialArgs);
     }
@@ -22847,8 +22850,10 @@ export {
   belongsTo,
   src_default as default,
   hasMany,
+  observe,
   randomId,
   raw,
+  unobserve,
   useController
 };
 /*! *****************************************************************************
