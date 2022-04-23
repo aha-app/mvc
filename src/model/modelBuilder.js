@@ -83,7 +83,7 @@ export const modelAttribute = (attr, options = {}) => {
   if (attr === null || attr === undefined) {
     return attr;
   } else if (Array.isArray(attr)) {
-    return attr.map(obj => modelInstance(obj, options));
+    return attr.map(obj => modelAttribute(obj, options));
   } else if (typeof attr === 'object' && attr instanceof ApplicationModel) {
     return attr;
   } else if (typeof attr === 'object' && attr.nodes) {
