@@ -32,7 +32,7 @@ class ApplicationController {
     this.subscriptions = [];
     this.cancelTokens = {};
 
-    return new Proxy(this, {
+    this.proxiedThis = new Proxy(this, {
       // Traverse up through the controller hierarchy and find one that responds
       // to the specified action.
       get(targetController, prop, receiver) {
@@ -75,6 +75,8 @@ class ApplicationController {
         }
       },
     });
+
+    return this.proxiedThis;
   }
 
   internalInitialize(parentController, initialArgs) {
@@ -247,6 +249,17 @@ class ApplicationController {
   setState(newState) {
     Object.keys(newState).forEach(key => {
       this.state[key] = newState[key];
+    });
+  }
+
+  /**
+   * Extends instances of this controller with the properties defined in
+   * `mixin`. Will overwrite any existing properties of the same name.
+   */
+  static extend(mixin) {
+    Object.keys(mixin).forEach(key => {
+      const descriptor = Object.getOwnPropertyDescriptor(mixin, key);
+      Object.defineProperty(this.prototype, key, descriptor);
     });
   }
 }

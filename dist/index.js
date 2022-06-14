@@ -9991,7 +9991,7 @@ var ApplicationController = class {
     this.state = void 0;
     this.subscriptions = [];
     this.cancelTokens = {};
-    return new Proxy(this, {
+    this.proxiedThis = new Proxy(this, {
       get(targetController, prop, receiver) {
         if (typeof prop === "string" && prop.startsWith("action")) {
           let currentController = targetController;
@@ -10025,6 +10025,7 @@ var ApplicationController = class {
         }
       }
     });
+    return this.proxiedThis;
   }
   internalInitialize(parentController, initialArgs) {
     if (!this.initialized) {
@@ -10102,6 +10103,12 @@ var ApplicationController = class {
   setState(newState) {
     Object.keys(newState).forEach((key) => {
       this.state[key] = newState[key];
+    });
+  }
+  static extend(mixin3) {
+    Object.keys(mixin3).forEach((key) => {
+      const descriptor = Object.getOwnPropertyDescriptor(mixin3, key);
+      Object.defineProperty(this.prototype, key, descriptor);
     });
   }
 };
@@ -11624,7 +11631,7 @@ var modelAttribute = (attr2, options = {}) => {
   if (attr2 === null || attr2 === void 0) {
     return attr2;
   } else if (Array.isArray(attr2)) {
-    return attr2.map((obj) => modelInstance(obj, options));
+    return attr2.map((obj) => modelAttribute(obj, options));
   } else if (typeof attr2 === "object" && attr2 instanceof ApplicationModel) {
     return attr2;
   } else if (typeof attr2 === "object" && attr2.nodes) {
