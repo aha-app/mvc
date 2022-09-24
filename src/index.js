@@ -11,7 +11,7 @@ import ApplicationModel, {
 } from './model/ApplicationModel';
 import ApolloModelClient from './model/ApolloModelClient';
 import { view as ApplicationView } from '@aha-app/react-easy-state';
-import { raw } from '@nx-js/observer-util';
+import { raw, observe, unobserve } from '@nx-js/observer-util';
 import { randomId } from './utils/randomId';
 
 // Export our public API.
@@ -32,6 +32,8 @@ export {
   ApplicationView,
   // observer.
   raw,
+  observe,
+  unobserve,
   // utils
   randomId,
 };
