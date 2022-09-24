@@ -3,16 +3,16 @@ import {
   StartControllerScope,
   ControlledComponent,
   useController,
-} from "./controller/ApplicationController";
+} from './controller/ApplicationController';
 import ApplicationModel, {
   attr,
   belongsTo,
   hasMany,
-} from "./model/ApplicationModel";
-import ApolloModelClient from "./model/ApolloModelClient";
-import { view as ApplicationView } from "@aha-app/react-easy-state";
-import { raw } from "@nx-js/observer-util";
-import { randomId } from "./utils/randomId";
+} from './model/ApplicationModel';
+import ApolloModelClient from './model/ApolloModelClient';
+import { view as ApplicationView } from '@aha-app/react-easy-state';
+import { raw } from '@nx-js/observer-util';
+import { randomId } from './utils/randomId';
 
 // Export our public API.
 export default ApplicationController;

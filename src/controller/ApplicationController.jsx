@@ -261,6 +261,15 @@ class ApplicationController {
  * Inside a child component:
  *   const controller = useController();
  *
+ * A reference to the controller can be retrieved from the component by
+ * passing the `controllerRef` prop a value returned by `useRef()`.
+ *
+ * Example:
+ *
+ *   const whiteboardController = useRef();
+ *   <Whiteboard controllerRef={whiteboardController} />
+ *   ...
+ *   whiteboardController.current.actionPanIntoView();
  */
 function StartControllerScope(ControllerClass, ControlledComponent) {
   // Use React.memo here so if props don't change then we don't re-render and
@@ -268,6 +277,21 @@ function StartControllerScope(ControllerClass, ControlledComponent) {
   return React.memo(controllerInitialArgs => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const [controller] = useState(new ControllerClass());
+
+    if (controllerInitialArgs?.controllerRef) {
+      if (typeof controllerInitialArgs.controllerRef === 'function') {
+        controllerInitialArgs.controllerRef(controller);
+      } else if (
+        controllerInitialArgs.controllerRef.hasOwnProperty('current')
+      ) {
+        controllerInitialArgs.controllerRef.current = controller;
+      } else {
+        throw new Error(
+          'The controllerRef prop must be passed the value provided by useRef() or useCallback().'
+        );
+      }
+    }
+
     return (
       <Controller
         controller={controller}

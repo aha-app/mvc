@@ -9546,6 +9546,15 @@ var ApplicationController = class {
 function StartControllerScope(ControllerClass, ControlledComponent2) {
   return React.memo((controllerInitialArgs) => {
     const [controller] = useState2(new ControllerClass());
+    if (controllerInitialArgs == null ? void 0 : controllerInitialArgs.controllerRef) {
+      if (typeof controllerInitialArgs.controllerRef === "function") {
+        controllerInitialArgs.controllerRef(controller);
+      } else if (controllerInitialArgs.controllerRef.hasOwnProperty("current")) {
+        controllerInitialArgs.controllerRef.current = controller;
+      } else {
+        throw new Error("The controllerRef prop must be passed the value provided by useRef() or useCallback().");
+      }
+    }
     return /* @__PURE__ */ React.createElement(Controller, {
       controller,
       controllerInitialArgs,
@@ -22310,3 +22319,4 @@ PERFORMANCE OF THIS SOFTWARE.
  * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
  * Copyright Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
  */
+//# sourceMappingURL=index.js.map
