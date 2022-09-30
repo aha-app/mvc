@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "node config/build.js"
+    "build": "node config/build.js && cp src/index.d.ts dist/"
   },
   "repository": {
     "type": "git",
