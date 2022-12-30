@@ -1,14 +1,25 @@
-import React, { useContext, useEffect, useState } from 'react';
 import { store } from '@aha-app/react-easy-state';
 import Debug from 'debug';
+import React, { useContext, useEffect, useState } from 'react';
 //import ReactiveRegister from 'javascripts/reactive_register';
-import { randomId } from '../utils/randomId';
-import CAF from 'caf';
 import _ from 'lodash';
+import { randomId } from '../utils/randomId';
 
 const debug = Debug('framework:controller');
 
 class ControllerNoActionError extends Error {}
+
+type UndefApp = ApplicationController<unknown, unknown, unknown> | undefined;
+
+interface ApplicationController<
+  State = object,
+  Props = object,
+  Parent = UndefApp
+> {
+  constructor: Function & {
+    initialState: State;
+  };
+}
 
 /*
  * General rules to follow for using controllers:
@@ -24,14 +35,27 @@ class ControllerNoActionError extends Error {}
  *    callbacks, after `await`, render methods, and from within other action
  *    functions.
  */
-class ApplicationController {
-  constructor() {
-    this.id = randomId();
-    this.parent = null;
-    this.state = undefined;
-    this.subscriptions = [];
-    this.cancelTokens = {};
+class ApplicationController<State = object, Props = object, Parent = UndefApp> {
+  static initialState = {};
 
+  static use(): any {
+    let current = useController();
+    do {
+      if (current.constructor === this) return current;
+      // @ts-ignore
+      current = current.parent;
+    } while (current);
+  }
+
+  id: string | null = randomId();
+  parent: Parent | null = null;
+  state: State & { _tempObservable: any };
+  subscriptions: [] = [];
+  cancelTokens = {};
+  proxiedThis: this;
+  initialized: boolean = false;
+
+  constructor() {
     this.proxiedThis = new Proxy(this, {
       // Traverse up through the controller hierarchy and find one that responds
       // to the specified action.
@@ -48,6 +72,7 @@ class ApplicationController {
               };
             }
             // Look further up the hierarchy.
+            // @ts-ignore
             currentController = currentController.parent;
             currentProxy = currentProxy.parent;
           } while (currentController);
@@ -66,6 +91,8 @@ class ApplicationController {
             if (prop in currentController) {
               return true;
             }
+
+            // @ts-ignore
             currentController = currentController.parent;
           } while (currentController);
 
@@ -79,7 +106,9 @@ class ApplicationController {
     return this.proxiedThis;
   }
 
-  internalInitialize(parentController, initialArgs) {
+  initialize(props: Props): void | Promise<void> {}
+
+  internalInitialize(parentController: Parent, initialArgs: Props) {
     if (!this.initialized) {
       this.parent = parentController;
 
@@ -103,76 +132,11 @@ class ApplicationController {
   }
 
   internalDestroy() {
-    // Unregister reactive updates.
-    this.unsubscribeAll();
     this.unlisten();
   }
 
   unlisten() {
     // Override in child to unlisten all models
-  }
-
-  /**
-   * Subscribe to a reactive update based on pattern and action.
-   *
-   * @param {string | string[]} pattern a reactive update pattern. Example: "Project-123/Feature-456"
-   * @param {string} action_or_callback one of ["create", "update", "destroy"]
-   * @param {function} callback a function that receives the parentId and childId of a reactive update. Example: callback("projects-123", "features-456")
-   */
-  subscribe(pattern, action_or_callback, callback) {
-    if (!callback) {
-      callback = action_or_callback;
-      action_or_callback = ['create', 'update', 'destroy'];
-    }
-    const subscribedActions =
-      action_or_callback instanceof Array
-        ? action_or_callback
-        : [action_or_callback];
-
-    // Use reactive updates to detect record changes.
-    const subscriptionId = `controller-${this.id}-${subscribedActions.join(
-      ','
-    )}-${pattern}`;
-
-    if (this.subscriptions.includes(subscriptionId)) {
-      console.warn(
-        `Re-registering an already registered reactive pattern for this controller: ${subscriptionId}`
-      );
-      this.unsubscribe(subscriptionId);
-    }
-
-    this.subscriptions.push(subscriptionId);
-    /*TODO: ReactiveRegister.register(
-      subscriptionId,
-      pattern,
-      async (change, ownPageChanges, ownComponentChanges, messageClientId) => {
-        if (messageClientId === window.frameworkClientId()) {
-          debug(`Ignoring our own change ${change.path}`);
-          return;
-        }
-
-        if (subscribedActions.includes(change.action)) {
-          debug(`Handling update ${change.path}`);
-          // Split parent and child key into components.
-          const [p, c] = change.path.split('/');
-
-          callback(p, c, change);
-        }
-      }
-    );*/
-    return subscriptionId;
-  }
-
-  unsubscribe(subscriptionId) {
-    // TODO: ReactiveRegister.deregister(subscriptionId);
-    const index = this.subscriptions.indexOf(subscriptionId);
-    if (index >= 0) this.subscriptions.splice(index, 1);
-  }
-
-  unsubscribeAll() {
-    this.subscriptions.slice().forEach(subscriptionId => {
-      this.unsubscribe(subscriptionId);
-    });
   }
 
   /**
@@ -187,79 +151,16 @@ class ApplicationController {
     return this.state._tempObservable;
   }
 
-  /**
-   * Run an async function that can be canceled using
-   * `cancelPending`. When canceled, the async function will not run
-   * its `then` (or anything following the `await`).
-   *
-   * `scope` is an arbitrary string that can be used in
-   * `cancelPending` to cancel only pending functions of a certain
-   * type.
-   *
-   * For example:
-   *   await this.cancelable("loadFilters", async () => ...)
-   *   this.cancelPending("loadFilters")
-   */
-  cancelable(scope, fn) {
-    let token = this.cancelTokens[scope];
-    if (!token) {
-      token = this.cancelTokens[scope] = new CAF.cancelToken(); // eslint-disable-line new-cap
-    }
-
-    const cancelableFn = CAF(function* (signal) {
-      return yield fn(signal);
-    });
-
-    return cancelableFn(token.signal);
-  }
-
-  /**
-   * Cancel all running cancelable functions created using `scope`.
-   */
-  cancelPending(scope) {
-    if (this.cancelTokens[scope]) {
-      this.cancelTokens[scope].abort(
-        `Cancelled pending functions for ${this.constructor.name}/${scope}`
-      );
-    }
-    delete this.cancelTokens[scope];
-  }
-
-  /**
-   * Cancel all running cancelable functions.
-   */
-  cancelAllPending() {
-    Object.keys(this.cancelTokens).forEach(scope => this.cancelPending(scope));
-  }
-
-  /**
-   * Cleanup the cancelable state after the operation is complete.
-   */
-  finishPending(scope) {
-    delete this.cancelTokens[scope];
-  }
-
-  changeProps(newProps) {
+  changeProps(newProps: Props) {
     // Override in sub-class to respond to changes in props.
   }
 
   /**
    * Partially set state
    */
-  setState(newState) {
+  setState(newState: Partial<State>) {
     Object.keys(newState).forEach(key => {
       this.state[key] = newState[key];
-    });
-  }
-
-  /**
-   * Extends instances of this controller with the properties defined in
-   * `mixin`. Will overwrite any existing properties of the same name.
-   */
-  static extend(mixin) {
-    Object.keys(mixin).forEach(key => {
-      const descriptor = Object.getOwnPropertyDescriptor(mixin, key);
-      Object.defineProperty(this.prototype, key, descriptor);
     });
   }
 }
@@ -296,12 +197,17 @@ function StartControllerScope(ControllerClass, ControlledComponent) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const [controller] = useState(new ControllerClass());
 
+    // @ts-ignore
     if (controllerInitialArgs?.controllerRef) {
+      // @ts-ignore
       if (typeof controllerInitialArgs.controllerRef === 'function') {
+        // @ts-ignore
         controllerInitialArgs.controllerRef(controller);
       } else if (
+        // @ts-ignore
         controllerInitialArgs.controllerRef.hasOwnProperty('current')
       ) {
+        // @ts-ignore
         controllerInitialArgs.controllerRef.current = controller;
       } else {
         throw new Error(
@@ -365,17 +271,12 @@ function ControlledComponent({ children, controller }) {
 /**
  * Returns the controller instance created by the closest
  * ControllerContext.
- *
- * @template T
- * @returns {T}
  */
-const useController = () => {
+function useController<Controller extends ApplicationController>(): Controller {
   const controller = useContext(ControllerContext);
-
   const statefulController = controller;
-
-  return statefulController;
-};
+  return statefulController as Controller;
+}
 
 export {
   ApplicationController,
