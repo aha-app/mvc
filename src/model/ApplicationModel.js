@@ -1,18 +1,26 @@
-import { raw } from "@nx-js/observer-util";
-import { classify } from "inflected";
-import addProxyInstanceOf from "../utils/addProxyInstanceOf";
-import { pick } from "lodash";
-import EnumValue from "./EnumValue";
-import Errors from "./Errors";
-import Fragment from "./Fragment";
-import { modelAttribute } from "./modelBuilder";
-import Query from "./Query";
-import { RelationAttribute } from "./RelationAttribute";
+import { raw } from '@nx-js/observer-util';
+import { classify } from 'inflected';
+import addProxyInstanceOf from 'javascripts/util/addProxyInstanceOf';
+import { pick } from 'lodash';
+import EnumValue from './EnumValue';
+import Errors from './Errors';
+import Fragment from './Fragment';
+import { modelAttribute } from './modelBuilder';
+import NullClient from './NullClient';
+import Query from './Query';
+import { RelationAttribute } from './RelationAttribute';
+import SynchronizedModelRegistry from './SynchronizedModelRegistry';
 
 // Global client instance.
-let client = null;
+let client = new NullClient();
 
 let objectIdCounter = 0;
+
+/**
+ * @typedef ApplicationModelConstructor
+ * @prop {ApplicationModel} new()
+ * @prop {(fieldName: string) => boolean} hasField
+ */
 
 /**
  * Wraps a GraphQL object, decorating it with other fields and helpful
@@ -24,6 +32,8 @@ let objectIdCounter = 0;
  * nested object will not be wrapped in a model until it's
  * accessed. Bringing an attribute into its realized form is called
  * `instantiating`.
+ *
+ * @template {{}} L
  */
 export default class ApplicationModel {
   /** @type {string} */
@@ -40,13 +50,22 @@ export default class ApplicationModel {
   static select(...attrs) {
     return new Query(this).select(...attrs);
   }
-  static where(...attrs) {
-    return new Query(this).where(...attrs);
+  static selectAll() {
+    return new Query(this).selectAll();
+  }
+  static where(filters) {
+    return new Query(this).where(filters);
+  }
+  static merge(subqueries) {
+    return new Query(this).merge(subqueries);
+  }
+  static deepMerge(subqueries) {
+    return new Query(this).deepMerge(subqueries);
   }
 
   /**
    * Returns the current client for making GraphQL requests.
-   * @returns {import('./ApolloModelClient').default}
+   * @returns {ApplicationModelClient}
    */
   static get client() {
     return client;
@@ -82,7 +101,7 @@ export default class ApplicationModel {
     if (value === null || value === undefined) {
       return false;
     } else if (Array.isArray(value)) {
-      return value.some((o) => this.isModel(o));
+      return value.some(o => this.isModel(o));
     } else if (value.__typename) {
       return true;
     } else if (value instanceof ApplicationModel) {
@@ -91,31 +110,37 @@ export default class ApplicationModel {
     return false;
   }
 
+  /**
+   * @param {string} fieldName
+   */
   static hasField(fieldName) {
     return fieldName in this.fields;
   }
 
   static reactivePatternToCacheId(pattern) {
-    const [name, id] = pattern.split("-");
-    return [name.replace("::", ""), id].join(":");
+    const [name, id] = pattern.split('-');
+    return [name.replace('::', ''), id].join(':');
   }
 
   /**
    * Returns the id for the instance of this model referred to by
    * `pattern`. For example, calling this on `Feature-123` will
    * return `123`.
+   *
+   * @param {string} pattern
    */
   static idFromReactivePattern(pattern) {
     const match = pattern
-      .replace("::", "")
+      .replace('::', '')
       .match(new RegExp(`^${this.typename}-(\\d+)`));
     return match?.[1];
   }
 
   /**
    * Hash of all defined models.
-   * @type {Record<string, typeof ApplicationModel>}
+   * @type {Aha.Models}
    */
+  // @ts-ignore
   static models = {};
 
   /**
@@ -126,7 +151,7 @@ export default class ApplicationModel {
 
   /**
    * Hash of fields defined on this model.
-   * @type {{[index: string]: any}}
+   * @type {{[index: string]: Field}}
    */
   static fields = undefined;
 
@@ -150,7 +175,7 @@ export default class ApplicationModel {
     const resolvedFragment = fragment.resolve();
 
     return ApplicationModel.client.query(
-      resolvedFragment.toDocument(fragment.name, "query"),
+      resolvedFragment.toDocument(fragment.name, 'query'),
       {
         variables: resolvedFragment.toVariables(),
       }
@@ -163,22 +188,35 @@ export default class ApplicationModel {
    * @returns {Fragment}
    */
   static buildErrorFragment() {
-    return new Fragment("errors").fragment(
-      new Fragment("attributes").attr(
-        "name",
-        "messages",
-        "fullMessages",
-        "codes"
+    return new Fragment('errors').fragment(
+      new Fragment('attributes').attr(
+        'name',
+        'messages',
+        'fullMessages',
+        'codes'
       )
     );
   }
 
   /**
+   * @typedef ErrorAttribute
+   * @prop {string} name
+   * @prop {string[]} messages
+   * @prop {string[]} fullMessages
+   * @prop {string[]} codes
+   */
+  /**
+   * @typedef Errors
+   * @prop {ErrorAttribute[]} attributes
+   */
+
+  /**
    * Turn the given fragment into a mutation query, add standard error
    * attributes and send to the API
    *
+   * @template {Record<string, any>} T
    * @param {Fragment} fragment
-   * @returns {Promise<any>} The return data from the mutation
+   * @returns {Promise<Record<string, Aha.GetElementType<T> & Aha.RecordErrors>>} The return data from the mutation
    */
   static async mutate(fragment) {
     const mutationFragment = fragment
@@ -186,7 +224,7 @@ export default class ApplicationModel {
       .resolve();
 
     return ApplicationModel.client.mutate(
-      mutationFragment.toDocument(classify(mutationFragment.name), "mutation"),
+      mutationFragment.toDocument(classify(mutationFragment.name), 'mutation'),
       { variables: mutationFragment.toVariables() }
     );
   }
@@ -207,6 +245,7 @@ export default class ApplicationModel {
   constructor(attributes = {}, options = {}) {
     this.internalObjectId = objectIdCounter++;
     this.attributes = {};
+    /** @type {Partial<L>} */
     this.local = {};
     this.options = options;
     this.instantiatedAttributes = {};
@@ -214,8 +253,8 @@ export default class ApplicationModel {
     this.cacheId = client.cacheId(attributes);
 
     this.query = new Query(this.constructor).first();
-    if (this.constructor.hasField("id")) {
-      this.query = this.query.select("id");
+    if (this.constructor.hasField('id')) {
+      this.query = this.query.select('id');
     }
     if (options.query) {
       let originalQuery = options.query;
@@ -227,7 +266,7 @@ export default class ApplicationModel {
               this.constructor.typename
             } returned but union only contained ${Object.keys(
               options.query.unions
-            ).join(",")}`
+            ).join(',')}`
           );
         }
       }
@@ -236,20 +275,25 @@ export default class ApplicationModel {
         .select(originalQuery.attrs)
         .merge(originalQuery.subqueries);
     }
+
     if (options.parent) {
       this._parent = options.parent;
     }
 
     this.defineAccessors();
     this.resetAttributes(attributes);
+    this.initialize();
 
     // Don't allow new properties to be added to this model. Prevents
     // accidentally treating attributes like properties. Only applies when
     // we are not testing so that we can still mock implementations.
-    if (typeof jest === "undefined") {
+    if (typeof jest === 'undefined') {
       Object.seal(this);
     }
   }
+
+  /** Override to add custom initialization */
+  initialize() {}
 
   /**
    * ```
@@ -304,7 +348,7 @@ export default class ApplicationModel {
         `Fields must be defined for model ${this.constructor.typename}`
       );
     }
-    Object.keys(this.constructor.fields).forEach((attribute) => {
+    Object.keys(this.constructor.fields).forEach(attribute => {
       if (this.hasOwnProperty(attribute)) return;
 
       Object.defineProperty(this, attribute, {
@@ -324,7 +368,27 @@ export default class ApplicationModel {
    */
   isRelationship(name) {
     const field = this.constructor.fields[name];
-    return field.type === "belongsTo" || field.type === "hasMany";
+    return field.type === 'belongsTo' || field.type === 'hasMany';
+  }
+
+  /**
+   * @return {boolean} `true` if the field is writeable, `false` otherwise.
+   */
+  isWriteable(name) {
+    const field = this.constructor.fields[name];
+    if (!field) return false;
+
+    return field.writable || field.writeShape;
+  }
+
+  /**
+   * @return {boolean} `true` if the field is a JSON attribute.
+   */
+  isJson(name) {
+    const field = this.constructor.fields[name];
+    if (!field) return false;
+
+    return field.type === 'attr' && field.json;
   }
 
   /**
@@ -338,7 +402,7 @@ export default class ApplicationModel {
       return this.instantiatedAttributes[name];
     } else {
       const rawAttr = this.attributes[name];
-      if (typeof rawAttr === "undefined") {
+      if (typeof rawAttr === 'undefined') {
         // Don't trigger an update since nothing changed, we are simply caching the value.
         raw(this).instantiatedAttributes[name] = undefined;
         return undefined;
@@ -346,6 +410,7 @@ export default class ApplicationModel {
       const options = {
         query: this.query.subqueries[name],
         parent: new RelationAttribute(this, name),
+        json: this.isJson(name),
       };
       const value = modelAttribute(rawAttr, options);
 
@@ -390,15 +455,15 @@ export default class ApplicationModel {
    *
    * @param {string} name The attribute name
    * @param {*} value The new attribute value
-   * @param {boolean} flagDirty When true, will also perform dirty checks for uninstantiated attributes
+   * @param {boolean} flagDirty When true, will perform dirty checks for attributes
    */
   setAttribute(name, value, flagDirty = true) {
-    if (name in this.instantiatedAttributes) {
-      if (!this.isEqual(this.instantiatedAttributes[name], value)) {
-        this.flagDirty(name);
-      }
-    } else if (flagDirty) {
-      if (!this.isEqual(this.attributes[name], value)) {
+    if (flagDirty) {
+      if (name in this.instantiatedAttributes) {
+        if (!this.isEqual(this.instantiatedAttributes[name], value)) {
+          this.flagDirty(name);
+        }
+      } else if (!this.isEqual(this.attributes[name], value)) {
         this.flagDirty(name);
       }
     }
@@ -407,6 +472,13 @@ export default class ApplicationModel {
 
     if (this.attributes[name] === undefined) {
       this.attributes[name] = value;
+    }
+  }
+
+  setAttributes(attrs, flagDirty = true) {
+    for (let [name, value] of Object.entries(attrs)) {
+      delete this.attributes[name];
+      this.setAttribute(name, value, flagDirty);
     }
   }
 
@@ -434,13 +506,26 @@ export default class ApplicationModel {
     return this.dirtyAttributes.has(name);
   }
 
+  /**
+   * Restores the last saved value of the given attribute, and treats it as unchanged.
+   *
+   * @param {string} name The attribute name to restore
+   */
+  restoreAttribute(name) {
+    if (this.dirtyAttributes.has(name)) {
+      delete this.instantiatedAttributes[name];
+      this.dirtyAttributes.delete(name);
+    }
+  }
+
   resetAttributes(newAttrs, errors = {}) {
     this.errors = new Errors(errors);
     if (newAttrs) {
       // Update attributes that are not `isEqual` to the old attributes.
       Object.entries(newAttrs).forEach(([name, value]) => {
         if (!this.isEqual(this.getAttributeWithoutInstantiating(name), value)) {
-          this.attributes[name] = value;
+          delete this.attributes[name];
+          this.setAttribute(name, value, false);
           delete this.instantiatedAttributes[name];
         }
       });
@@ -465,23 +550,26 @@ export default class ApplicationModel {
    * @param {Fragment} fragment
    * @param {object} options All data passed along to generate the mutation query.
    * @param {Query=} options.query The Query object used to update data from the mutation response
+   * @param {boolean=} options.resetQuery When true, the passed in query will replace the model's current query. Defaults to false.
    * @param {boolean=} options.reset Whether to reset the attributes or not, defaults to true.
    *
    * @returns {Promise<boolean>} `true` if the mutation ran without errors, `false` otherwise.
    */
   async mutate(fragment, options = {}) {
+    const { reset = true, resetQuery = true } = options;
     const query = options.query || this.query;
     const data = await ApplicationModel.mutate(
       fragment.fragment(query.buildQueryFragment())
     );
 
-    this.query = query;
-    const queryName = this.query.queryName;
+    if (resetQuery) {
+      this.query = query;
+    }
+    const queryName = query.queryName;
 
     const mutationData = data[fragment.name];
     const newAttributes = mutationData[queryName];
     const errors = mutationData.errors;
-    const { reset = true } = options;
 
     if (reset) {
       this.resetAttributes(newAttributes, errors);
@@ -501,8 +589,10 @@ export default class ApplicationModel {
     const value = this.getAttributeWithoutInstantiating(key);
     const methodName = `${key}ForQuery`;
 
-    if (typeof this[methodName] === "function") {
+    if (typeof this[methodName] === 'function') {
       return this[methodName](value);
+    } else if (typeof value?.prepareForQuery === 'function') {
+      return value.prepareForQuery();
     } else if (this.isRelationship(key)) {
       if (!value) {
         return value;
@@ -519,7 +609,7 @@ export default class ApplicationModel {
         }, {});
       }
 
-      if ("id" in value) {
+      if ('id' in value) {
         // We will use the 'id' field if it is `null` so that a record can be
         // removed from an association.
         return { id: value.id };
@@ -550,14 +640,30 @@ export default class ApplicationModel {
   }
 
   /**
+   * Updates attributes on the model and then calls save.
+   *
+   * @param {object} attributes The attributes to set on the model before saving.
+   * @param {object} options Options to pass to the save method.
+   *
+   * @returns {Promise<boolean>} `true` if the mutation ran without errors, `false` otherwise.
+   */
+  async update(attributes, options = {}) {
+    Object.assign(this, attributes);
+
+    return this.save(options);
+  }
+
+  /**
    * Updates or creates this record using a GraphQL mutation. Will use the
    * `update{ModelName}` or `create{ModelName}` mutations, respectively. Sends
    * all changed attributes and relationships as arguments, and, by default,
    * updates attributes using the query used to construct this object.
    *
    * @param {object} options Data used to modify the mutation query.
+   * @param {object=} options.attributes Attributes to set before calling save.
    * @param {object=} options.args Bare, top-level (non-attribute) arguments passed along with the mutation. These will be at the same level as `id`, for example.
    * @param {Query=} options.query A Query object used to override the default query.
+   * @param {boolean=} options.resetQuery When true, a passed in query will replace the model's current query. Defaults to false.
    * @param {boolean=} options.always When true, will always perform the mutation even if no data has changed. Useful for forcing the object's attributes to update, even when there's nothing to save.
    *
    * @returns {Promise<boolean>} `true` if the mutation ran without errors, `false` otherwise.
@@ -566,7 +672,7 @@ export default class ApplicationModel {
     if (!this.isDirty() && !options.always) return true;
 
     let fragment = this.persisted
-      ? new Fragment(`update${this.typename}`).argument("id", this.id)
+      ? new Fragment(`update${this.typename}`).argument('id', this.id)
       : new Fragment(`create${this.typename}`);
 
     const args = {
@@ -580,11 +686,20 @@ export default class ApplicationModel {
       fragment = fragment.argument(
         key,
         value,
-        key === "attributes" ? this.constructor.inputType : null
+        key === 'attributes' ? this.constructor.inputType : null
       );
     });
 
-    return this.mutate(fragment, pick(options, "query"));
+    const attributesToSync = Array.from(this.dirtyAttributes).reduce(
+      (res, key) => ({
+        ...res,
+        [key]: this.getAttributeWithoutInstantiating(key),
+      }),
+      {}
+    );
+    SynchronizedModelRegistry.instance.synchronize(this, attributesToSync);
+
+    return this.mutate(fragment, pick(options, 'query', 'resetQuery'));
   }
 
   /**
@@ -593,15 +708,39 @@ export default class ApplicationModel {
    *
    * @param {object} options
    * @param {Query=} options.query
+   * @param {import('./Batcher').default=} options.batcher
    */
   async reload(options = {}) {
     if (!this.persisted) {
-      throw new Error("Cannot reload unsaved record.");
+      throw new Error('Cannot reload unsaved record.');
     }
 
     const query = options.query || this.query;
-    const newRecord = await query.find(this.id);
-    this.resetAttributes(newRecord.attributes);
+
+    /** @type {this | null} */
+    let newRecord;
+
+    if (options.batcher) {
+      if (this.constructor.filters['id']) {
+        newRecord = await options.batcher.findBy(query, { id: this.id });
+      } else {
+        newRecord = await options.batcher.find(query, this.id);
+      }
+    } else {
+      newRecord = await query.find(this.id);
+    }
+
+    if (newRecord) {
+      this.resetAttributes(newRecord.attributes);
+    }
+  }
+
+  /**
+   * Reverts any dirty attributes to their original values.
+   */
+  revert() {
+    this.instantiatedAttributes = {};
+    this.resetAttributes({});
   }
 
   /**
@@ -628,14 +767,66 @@ export default class ApplicationModel {
    *
    * @returns {Promise<boolean>} `true` if the mutation ran without errors, `false` otherwise.
    */
-  destroy() {
+  destroy(options = {}) {
     if (!this.persisted) {
       throw new Error("Can't destroy a non-persisted model");
     }
 
-    return this.mutate(
-      new Fragment(`delete${this.typename}`).argument("id", this.id)
-    );
+    let fragment = new Fragment(`delete${this.typename}`);
+
+    const args = {
+      id: this.id,
+      ...options.args,
+    };
+
+    Object.entries(args).forEach(([key, value]) => {
+      fragment = fragment.argument(key, value);
+    });
+
+    return this.mutate(fragment);
+  }
+
+  /**
+   * Indicate that this model instance should synchronize will all other
+   * instances for the same record.
+   */
+  synchronized() {
+    SynchronizedModelRegistry.instance.register(this);
+  }
+
+  /**
+   * @returns {string} The reactiveId for a record, in the pattern 'Model-1234'
+   */
+  get reactiveId() {
+    if (!this.persisted) {
+      return;
+    }
+
+    return [this.typename, this.uniqueId].join('-');
+  }
+
+  /**
+   * Register model for reactive updates
+   *
+   * @param {import('./ReactiveModelRegistry').UpdateCallbacks<this>=} callbacks
+   */
+  reactive(callbacks) {
+    if (!('reactiveModelRegistry' in aha)) {
+      // Not available in the server bundle
+      throw new Error('ReactiveModelRegistry is not available');
+    }
+    aha.reactiveModelRegistry.register(this, callbacks);
+  }
+
+  /**
+   * Stop receiving reactive updates for this model
+   */
+  unreactive() {
+    if (!('reactiveModelRegistry' in aha)) {
+      // Not available in the server bundle
+      throw new Error('ReactiveModelRegistry is not available');
+    }
+    aha.reactiveModelRegistry.deregister(this);
   }
 
   /**
@@ -644,21 +835,48 @@ export default class ApplicationModel {
    * name.
    */
   static extend(mixin) {
-    Object.keys(mixin).forEach((key) => {
+    Object.keys(mixin).forEach(key => {
       const descriptor = Object.getOwnPropertyDescriptor(mixin, key);
       Object.defineProperty(this.prototype, key, descriptor);
     });
   }
 }
 
+/**
+ * @typedef Attr
+ * @prop {'attr'} type
+ */
+/**
+ * @typedef BelongsTo
+ * @prop {'belongsTo'} type
+ */
+/**
+ * @typedef HasMany
+ * @prop {'hasMany'} type
+ */
+/**
+ * @typedef {Attr|BelongsTo|HasMany} Field
+ */
+
+/**
+ * @returns {Attr}
+ */
 export function attr(options = {}) {
-  return { type: "attr", ...options };
+  return { type: 'attr', ...options };
 }
+/**
+ * @returns {BelongsTo}
+ */
 export function belongsTo(options = {}) {
-  return { type: "belongsTo", ...options };
+  return { type: 'belongsTo', ...options };
 }
+attr.belongsTo = belongsTo;
+/**
+ * @returns {HasMany}
+ */
 export function hasMany(options = {}) {
-  return { type: "hasMany", ...options };
+  return { type: 'hasMany', ...options };
 }
+attr.hasMany = hasMany;
 
 addProxyInstanceOf(ApplicationModel);

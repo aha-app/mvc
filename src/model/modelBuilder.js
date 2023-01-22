@@ -78,6 +78,7 @@ export const modelInstance = (object, options = {}) => {
  * @param {*} attr
  * @param {object} options
  * @param {import('./RelationAttribute').RelationAttribute=} options.parent
+ * @param {import('./Query').default=} options.query
  */
 export const modelAttribute = (attr, options = {}) => {
   if (attr === null || attr === undefined) {
@@ -90,7 +91,7 @@ export const modelAttribute = (attr, options = {}) => {
     return new ModelCollection(attr, options);
   } else if (typeof attr === 'object' && attr.__typename) {
     return modelInstance(attr, options);
-  } else if (typeof attr === 'object') {
+  } else if (typeof attr === 'object' && !options.json) {
     return modelObject(attr);
   } else {
     return attr;

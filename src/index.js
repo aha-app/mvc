@@ -11,7 +11,8 @@ import ApplicationModel, {
 } from './model/ApplicationModel';
 import ApolloModelClient from './model/ApolloModelClient';
 import { view as ApplicationView } from '@aha-app/react-easy-state';
-import { raw, observe, unobserve } from '@nx-js/observer-util';
+import { raw } from '@nx-js/observer-util';
+import { observe, unobserve } from './core/MicrotaskScheduler';
 import { randomId } from './utils/randomId';
 
 // Export our public API.
@@ -21,6 +22,8 @@ export {
   ApplicationController,
   StartControllerScope,
   ControlledComponent,
+  Controller,
+  ControllerContext,
   useController,
   // Model
   ApplicationModel,

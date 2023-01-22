@@ -5,7 +5,7 @@ import {
   from,
   HttpLink,
 } from '@apollo/client';
-import { MockLink } from '@apollo/client/testing';
+import { NotFoundError } from './Errors';
 
 /**
  * @typedef {Partial<import('@apollo/client').QueryOptions<any> & { cacheId: string }>} QueryOptions
@@ -23,16 +23,25 @@ function toDocumentNode(query) {
     : query;
 }
 
+/**
+ * @implements {ApplicationModelClient}
+ */
 class ApolloModelClient {
   constructor(options = {}) {
-    const httpLink = new HttpLink({
-      uri: options.uri || '/api/v2/graphql',
-    });
+    const { addHttpLink = true } = options;
 
     let links = options.links || [];
     if (options.mocks) {
-      links.push(new MockLink(options.mocks));
-    } else {
+      throw new Error(
+        'Do not pass in mocks directly to ApolloModelClient, instead pass in an MockLink as options.mockLink.'
+      );
+    }
+
+    if (addHttpLink) {
+      const httpLink = new HttpLink({
+        uri: options.uri || '/api/v2/graphql',
+      });
+
       links.push(httpLink);
     }
 
@@ -40,7 +49,8 @@ class ApolloModelClient {
       cache: new InMemoryCache(),
       defaultOptions: {
         query: {
-          fetchPolicy: 'network-only',
+          // We aren't actively using any caching, and it causes some odd behaviours for card layouts
+          fetchPolicy: 'no-cache',
         },
       },
       link: from(links),
@@ -49,8 +59,23 @@ class ApolloModelClient {
     this.requestQueue = {};
   }
 
-  apiError(message) {
+  /**
+   * @param {Error} error
+   * @param {ApiErrorOptions=} options
+   */
+  apiError(error, options) {
+    const { raise = false } = options;
+    const { message } = error;
+
     console.error(`GraphQL API error: ${message}`);
+
+    if (raise) {
+      if (/status code 404/.test(message)) {
+        throw new NotFoundError(message);
+      } else {
+        throw error;
+      }
+    }
   }
 
   evict(options = {}) {
@@ -79,13 +104,11 @@ class ApolloModelClient {
         errorPolicy: 'all',
       });
     } catch (e) {
-      this.apiError(e.message);
-      throw new Error(e.message);
+      this.apiError(e, { raise: true });
     }
     if (result.errors && result.errors.length > 0) {
       const errorMessage = result.errors[0].message;
-      this.apiError(errorMessage);
-      throw new Error(errorMessage);
+      this.apiError(new Error(errorMessage), { raise: true });
     }
     return result.data;
   }
@@ -108,12 +131,12 @@ class ApolloModelClient {
         variables: options.variables || {},
       });
     } catch (e) {
-      this.apiError(e.message);
-      throw e;
+      this.apiError(e, { raise: true });
     }
     if (result.errors && result.errors.length > 0) {
       const errorMessage = result.errors[0].message;
-      this.apiError(errorMessage);
+      this.apiError(new Error(errorMessage));
+      throw new Error(errorMessage);
     }
 
     return result.data;

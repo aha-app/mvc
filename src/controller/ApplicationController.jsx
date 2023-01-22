@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { store } from '@aha-app/react-easy-state';
 import Debug from 'debug';
-//import ReactiveRegister from 'javascripts/reactive_register';
 import { randomId } from '../utils/randomId';
 import CAF from 'caf';
 import _ from 'lodash';
@@ -10,7 +9,17 @@ const debug = Debug('framework:controller');
 
 class ControllerNoActionError extends Error {}
 
-/*
+/**
+ * @template P
+ * @typedef {{new (): { initialize(props: P): Promise<void> }}} ApplicationControllerConstructor
+ */
+
+/**
+ * @template {ApplicationControllerConstructor<any>} T
+ * @typedef {T extends ApplicationControllerConstructor<infer P> ? P : never} GetControllerProps
+ */
+
+/**
  * General rules to follow for using controllers:
  *
  * 1. Any data that should trigger React re-rendering should be stored in
@@ -23,14 +32,22 @@ class ControllerNoActionError extends Error {}
  * 4. Action functions can be called from anywhere, including event handlers,
  *    callbacks, after `await`, render methods, and from within other action
  *    functions.
+ *
+ * @template {{}} State
+ * @template {{}} Props
+ * @template {ApplicationController<any,any,any>} Parent
  */
 class ApplicationController {
   constructor() {
     this.id = randomId();
+    /** @type {Parent} */
     this.parent = null;
+    /** @type {State & {_tempObservable: any}} */
     this.state = undefined;
     this.subscriptions = [];
     this.cancelTokens = {};
+    /** @type {() => void} */
+    this.destroy = undefined;
 
     this.proxiedThis = new Proxy(this, {
       // Traverse up through the controller hierarchy and find one that responds
@@ -79,6 +96,20 @@ class ApplicationController {
     return this.proxiedThis;
   }
 
+  /**
+   * Controllers can override this method to initialize at mount with the
+   * original props passed to the controller wrapped component.
+   *
+   * @abstract
+   * @param {Props} props
+   * @return {Promise<void>}
+   */
+  async initialize(props) {}
+
+  /**
+   * @param {ApplicationController<any,any>} parentController
+   * @param {Props} initialArgs
+   */
   internalInitialize(parentController, initialArgs) {
     if (!this.initialized) {
       this.parent = parentController;
@@ -89,6 +120,7 @@ class ApplicationController {
         }`
       );
 
+      // @ts-ignore
       this.state = store(_.cloneDeep(this.constructor.initialState));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
@@ -113,21 +145,42 @@ class ApplicationController {
   }
 
   /**
+   * @typedef ReactiveChange
+   * @prop {'update'|'destroy'|'create'} action
+   * @prop {string} path
+   * @prop {{}} meta
+   */
+
+  /**
+   * @callback SubscribeCallback
+   * @param {string} parentId
+   * @param {string} childId
+   * @param {ReactiveChange} change
+   * @returns {void}
+   */
+  /**
    * Subscribe to a reactive update based on pattern and action.
    *
    * @param {string | string[]} pattern a reactive update pattern. Example: "Project-123/Feature-456"
-   * @param {string} action_or_callback one of ["create", "update", "destroy"]
-   * @param {function} callback a function that receives the parentId and childId of a reactive update. Example: callback("projects-123", "features-456")
+   * @param {string|string[]|SubscribeCallback} action_or_callback one of ["create", "update", "destroy"]
+   * @param {SubscribeCallback=} callback a function that receives the parentId and childId of a reactive update. Example: callback("projects-123", "features-456")
+   * @param {object} options
+   * @param {boolean=} options.ignoreOwnChanges
    */
-  subscribe(pattern, action_or_callback, callback) {
-    if (!callback) {
+  subscribe(pattern, action_or_callback, callback, options = {}) {
+    const { ignoreOwnChanges = true } = options;
+
+    /** @type {string[]} */
+    let subscribedActions;
+
+    if (typeof action_or_callback === 'function') {
       callback = action_or_callback;
-      action_or_callback = ['create', 'update', 'destroy'];
+      subscribedActions = ['create', 'update', 'destroy'];
+    } else if (action_or_callback instanceof Array) {
+      subscribedActions = action_or_callback;
+    } else if (typeof action_or_callback === 'string') {
+      subscribedActions = [action_or_callback];
     }
-    const subscribedActions =
-      action_or_callback instanceof Array
-        ? action_or_callback
-        : [action_or_callback];
 
     // Use reactive updates to detect record changes.
     const subscriptionId = `controller-${this.id}-${subscribedActions.join(
@@ -142,11 +195,14 @@ class ApplicationController {
     }
 
     this.subscriptions.push(subscriptionId);
-    /*TODO: ReactiveRegister.register(
+    ReactiveRegister.register(
       subscriptionId,
       pattern,
       async (change, ownPageChanges, ownComponentChanges, messageClientId) => {
-        if (messageClientId === window.frameworkClientId()) {
+        if (
+          ignoreOwnChanges &&
+          messageClientId === window.frameworkClientId()
+        ) {
           debug(`Ignoring our own change ${change.path}`);
           return;
         }
@@ -159,12 +215,12 @@ class ApplicationController {
           callback(p, c, change);
         }
       }
-    );*/
+    );
     return subscriptionId;
   }
 
   unsubscribe(subscriptionId) {
-    // TODO: ReactiveRegister.deregister(subscriptionId);
+    ReactiveRegister.deregister(subscriptionId);
     const index = this.subscriptions.indexOf(subscriptionId);
     if (index >= 0) this.subscriptions.splice(index, 1);
   }
@@ -176,11 +232,11 @@ class ApplicationController {
   }
 
   /**
-   *  Force a record to be an observed instance that will
-   *  trigger observers on the controller state.
+   * Force a record to be an observed instance that will
+   * trigger observers on the controller state.
    *
-   *  You need this if you're using Spraypaint `.save()` to create a
-   *  record and want the updated record to trigger state updates.
+   * You need this if you're using `.save()` to create a
+   * record and want the updated record to trigger state updates.
    */
   observable(obj) {
     this.state._tempObservable = obj;
@@ -199,6 +255,9 @@ class ApplicationController {
    * For example:
    *   await this.cancelable("loadFilters", async () => ...)
    *   this.cancelPending("loadFilters")
+   *
+   * @param {string} scope
+   * @param {((signal:any) => Promise<any>)} fn
    */
   cancelable(scope, fn) {
     let token = this.cancelTokens[scope];
@@ -239,17 +298,37 @@ class ApplicationController {
     delete this.cancelTokens[scope];
   }
 
-  changeProps(newProps) {
-    // Override in sub-class to respond to changes in props.
-  }
+  /**
+   * Override in controller class to respond to changes in props
+   *
+   * @abstract
+   * @param {Props} newProps
+   */
+  changeProps(newProps) {}
 
   /**
    * Partially set state
+   *
+   * @param {Partial<State>} newState
    */
   setState(newState) {
     Object.keys(newState).forEach(key => {
       this.state[key] = newState[key];
     });
+  }
+
+  /**
+   * Returns the root controller.
+   *
+   * @returns {ApplicationController} The root controller.
+   */
+  get rootController() {
+    let controller = this;
+    while (controller.parent) {
+      controller = controller.parent;
+    }
+
+    return controller;
   }
 
   /**
@@ -288,7 +367,13 @@ class ApplicationController {
  *   <Whiteboard controllerRef={whiteboardController} />
  *   ...
  *   whiteboardController.current.actionPanIntoView();
+ *
+ * @template {ApplicationControllerConstructor<any>} T
+ * @param {T} ControllerClass
+ * @param {React.ComponentType<Partial<GetControllerProps<T>>>} ControlledComponent
+ * @returns {React.ComponentType<GetControllerProps<T>>}
  */
+// eslint-disable-next-line aha-app/no-undocumented-props
 function StartControllerScope(ControllerClass, ControlledComponent) {
   // Use React.memo here so if props don't change then we don't re-render and
   // allocate a new controller instance.
@@ -325,8 +410,19 @@ function StartControllerScope(ControllerClass, ControlledComponent) {
 const ControllerContext = React.createContext(null);
 
 /**
+ * @template Props
+ * @typedef ControllerProps
+ * @prop {React.ReactNode} children
+ * @prop {ApplicationController<any, Props>} controller
+ * @prop {Props} controllerInitialArgs
+ */
+
+/**
  * A component that initializes a controller instance and wraps its
  * child with a context containing that instance.
+ *
+ * @template {{}} Props
+ * @type {React.FC<ControllerProps<Props>>}
  */
 function Controller({ children, controller, controllerInitialArgs }) {
   const parentController = useContext(ControllerContext);
@@ -353,6 +449,7 @@ function Controller({ children, controller, controllerInitialArgs }) {
  * Associate a controller with existing components. Useful if the same controller
  * needs to live longer than its direct parent in the component hierarchy.
  *
+ * @type {React.FC<{controller: ApplicationController}>}
  */
 function ControlledComponent({ children, controller }) {
   return (
@@ -380,6 +477,8 @@ const useController = () => {
 export {
   ApplicationController,
   StartControllerScope,
+  Controller,
+  ControllerContext,
   ControlledComponent,
   useController,
 };

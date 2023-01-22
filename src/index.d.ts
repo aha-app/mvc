@@ -1,3 +1,21 @@
+interface ApiErrorOptions {
+  raise: boolean;
+}
+
+interface ApplicationModelClient {
+  apiError(error: Error, options?: ApiErrorOptions): void;
+  evict(options?: {}): void;
+  cacheId(attributes?: {}): string;
+  query<T>(
+    queryString: string | import('graphql').DocumentNode,
+    options?: {}
+  ): Promise<T>;
+  mutate<T>(
+    mutationString: string | import('graphql').DocumentNode,
+    options?: {}
+  ): Promise<T>;
+}
+
 export class ApplicationController<S = {}, P = {}> {
   state: S;
   parent: ApplicationController<any> | null;
@@ -37,3 +55,9 @@ export function ControlledComponent<
   }
 >(props: P): JSX.Element;
 export function ApplicationView<Component>(c: Component): Component;
+
+export class ApplicationModel {
+  constructor(attributes?: object, options?: object);
+}
+
+export function ApplicationView<T extends React.ComponentType>(component: T): T;

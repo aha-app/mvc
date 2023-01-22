@@ -1,5 +1,6 @@
 import { humanize } from 'inflected';
 
+export class NotFoundError extends Error {}
 export default class Errors {
   constructor(errors = {}) {
     this.errors = {};

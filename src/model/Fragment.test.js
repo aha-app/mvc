@@ -39,6 +39,36 @@ describe('Fragment', () => {
         `)
       );
     });
+
+    it('generates multiple aliases', () => {
+      const fragment = new Fragment()
+        .fragment(
+          new Fragment('feature')
+            .argument('id', 123, 'ID!')
+            .alias('feature_1')
+            .attr('id')
+        )
+        .fragment(
+          new Fragment('feature')
+            .argument('id', 321, 'ID!')
+            .alias('feature_2')
+            .attr('id')
+        )
+        .resolve();
+
+      expect(print(fragment.toDocument())).toEqual(
+        print(gql`
+          query GetData($feature0id: ID!, $feature1id: ID!) {
+            feature_1: feature(id: $feature0id) {
+              id
+            }
+            feature_2: feature(id: $feature1id) {
+              id
+            }
+          }
+        `)
+      );
+    });
   });
 
   describe('variables', () => {
@@ -71,7 +101,8 @@ describe('Fragment', () => {
       .argument('stationary', true)
       .argument('vision', [50, 50])
       .argument('attributes', { zookeeper: true }, 'PersonAttributes')
-      .argument('enum', new EnumValue('AnEnum', 'VALUE'));
+      .argument('enum', new EnumValue('AnEnum', 'VALUE'))
+      .argument('requiredEnum', new EnumValue('RequiredEnum', 'RVALUE'), true);
 
     it('sets the parameter types', () => {
       expect(fragment.toParameters()).toEqual([
@@ -82,6 +113,7 @@ describe('Fragment', () => {
         ['vision', '[Int]'],
         ['attributes', 'PersonAttributes'],
         ['enum', 'AnEnum'],
+        ['requiredEnum', 'RequiredEnum!'],
       ]);
     });
 
@@ -96,6 +128,7 @@ describe('Fragment', () => {
           zookeeper: true,
         },
         enum: 'VALUE',
+        requiredEnum: 'RVALUE',
       });
     });
 
@@ -119,6 +152,7 @@ describe('Fragment', () => {
           zookeeper: true,
         },
         enum: 'VALUE',
+        requiredEnum: 'RVALUE',
         filters: {
           enum: 'VALUE2',
           array: ['VALUE3'],
@@ -137,6 +171,7 @@ describe('Fragment', () => {
             $vision: [Int]
             $attributes: PersonAttributes
             $enum: AnEnum
+            $requiredEnum: RequiredEnum!
           ) {
             features(
               id: $id
@@ -146,6 +181,7 @@ describe('Fragment', () => {
               vision: $vision
               attributes: $attributes
               enum: $enum
+              requiredEnum: $requiredEnum
             )
           }
         `)
@@ -251,9 +287,9 @@ describe('Fragment', () => {
       const root = new Fragment('feature', 'Feature')
         .argument('id', '123')
         .fragment(
-          new Fragment('relatedRecords').fragment(
-            new Fragment('', 'Epic').union().attr('name')
-          )
+          new Fragment('relatedRecords')
+            .fragment(new Fragment('', 'Epic').union().attr('name'))
+            .fragment(new Fragment('', 'Feature').union().attr('name'))
         );
 
       expect(print(root.toDocument())).toEqual(
@@ -262,6 +298,9 @@ describe('Fragment', () => {
             feature(id: $id) {
               relatedRecords {
                 ... on Epic {
+                  name
+                }
+                ... on Feature {
                   name
                 }
               }
@@ -314,6 +353,188 @@ describe('Fragment', () => {
           `
         )
       );
+    });
+  });
+
+  describe('merge', () => {
+    it('merges a simple attribute only fragment', () => {
+      const f1 = new Fragment('test').attr('id', 'name');
+      const f2 = new Fragment('test').attr('id', 'age');
+      const f3 = f1.merge(f2);
+      const f4 = f2.merge(f1);
+
+      expect(print(f3.toDocument('Test'))).toEqual(
+        print(gql`
+          query Test {
+            test {
+              id
+              name
+              age
+            }
+          }
+        `)
+      );
+
+      expect(print(f4.toDocument('Test'))).toEqual(
+        print(gql`
+          query Test {
+            test {
+              id
+              age
+              name
+            }
+          }
+        `)
+      );
+    });
+
+    it('merges subqueries', () => {
+      const f1 = new Fragment('test')
+        .attr('id')
+        .fragment(
+          new Fragment('children')
+            .attr('id', 'name')
+            .fragment(new Fragment('grandchildren').attr('id', 'name'))
+        )
+        .fragment(new Fragment('parents').attr('id'));
+      const f2 = new Fragment('test')
+        .attr('name')
+        .fragment(new Fragment('children').attr('name', 'age'))
+        .fragment(new Fragment('pets').attr('id', 'name', 'age'));
+
+      const f3 = f1.merge(f2);
+      const f4 = f2.merge(f1);
+
+      expect(print(f3.toDocument('Test'))).toEqual(
+        print(gql`
+          query Test {
+            test {
+              id
+              name
+              children {
+                id
+                name
+                age
+                grandchildren {
+                  id
+                  name
+                }
+              }
+              parents {
+                id
+              }
+              pets {
+                id
+                name
+                age
+              }
+            }
+          }
+        `)
+      );
+
+      expect(print(f4.toDocument('Test'))).toEqual(
+        print(gql`
+          query Test {
+            test {
+              name
+              id
+              children {
+                name
+                age
+                id
+                grandchildren {
+                  id
+                  name
+                }
+              }
+              pets {
+                id
+                name
+                age
+              }
+              parents {
+                id
+              }
+            }
+          }
+        `)
+      );
+    });
+
+    it('merges aliases', () => {
+      const f1 = new Fragment('test').fragment(
+        new Fragment('children').attr('name').alias('myChildren')
+      );
+      const f2 = new Fragment('test')
+        .fragment(new Fragment('children').attr('id').alias('myChildren'))
+        .fragment(new Fragment('children').attr('id', 'age'));
+      const f3 = f1.merge(f2);
+      expect(print(f3.toDocument('Test'))).toEqual(
+        print(gql`
+          query Test {
+            test {
+              myChildren: children {
+                name
+                id
+              }
+              children {
+                id
+                age
+              }
+            }
+          }
+        `)
+      );
+    });
+
+    it('can merge the same args', () => {
+      const f1 = new Fragment('test').attr('name').argument('id', '123');
+      const f2 = new Fragment('test').attr('id').argument('id', '123');
+
+      expect(f1.canMerge(f2)).toBeTruthy();
+      const f3 = f1.merge(f2);
+
+      expect(f3.toVariables()).toEqual({ id: '123' });
+
+      expect(print(f3.toDocument('Test'))).toEqual(
+        print(gql`
+          query Test($id: ID!) {
+            test(id: $id) {
+              name
+              id
+            }
+          }
+        `)
+      );
+    });
+
+    it('cannot merge different args', () => {
+      const f1 = new Fragment('test').attr('name').argument('id', '123');
+      const f2 = new Fragment('test').attr('id').argument('id', '321');
+
+      expect(f1.canMerge(f2)).toBeFalsy();
+
+      expect(() => {
+        f1.merge(f2);
+      }).toThrowError('Cannot merge fragments with different variables');
+    });
+
+    it('cannot merge different child args', () => {
+      const f1 = new Fragment('test').fragment(
+        new Fragment('children')
+          .attr('name')
+          .argument('ageFilter', { greaterThan: 10 }, 'ChildAgeFilter')
+      );
+      const f2 = new Fragment('test').fragment(
+        new Fragment('children').attr('id')
+      );
+
+      expect(f1.canMerge(f2)).toBeFalsy();
+
+      expect(() => {
+        f1.merge(f2);
+      }).toThrowError('Cannot merge fragments with different variables');
     });
   });
 });

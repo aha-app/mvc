@@ -1,7 +1,6 @@
 import { immerable, produce } from 'immer';
 import EnumValue from './EnumValue';
-import mapValues from 'lodash/mapValues';
-import isObject from 'lodash/isObject';
+import { mapValues, isObject, isEqual } from 'lodash';
 
 /** @typedef {{key:string; name:string; type: string, value: any}} FilterVariable */
 
@@ -51,6 +50,27 @@ import isObject from 'lodash/isObject';
  *   }
  * }
  * ```
+ *
+ * If a fragment is not given a name then it is considered to be a "virtual"
+ * container, i.e. it just defers to it's selection:
+ *
+ * ```
+ * const fragment = new Fragment()
+ *   .fragment(new Fragment('feature').alias('feature_1').argument('id', 123).attr('id'))
+ *   .fragment(new Fragment('feature').alias('feature_2').argument('id', 321).attr('id'))
+ *   .resolve();
+ * fragment.toDocument()
+ * ```
+ *
+ * Generates:
+ *
+ * ```
+ * query GetData($feature0id: ID!, $feature1id: ID!) {
+ *   feature_1: feature(id: $feature0id) { id }
+ *   feature_2: feature(id: $feature1id) { id }
+ * }
+ *
+ * @type {Aha.Fragment}
  */
 export default class Fragment {
   [immerable] = true;
@@ -149,6 +169,93 @@ export default class Fragment {
   }
 
   /**
+   * @param {Fragment} other
+   */
+  canMerge(other) {
+    try {
+      this.merge(other);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  /**
+   * Merge fragments. Fragments are mergable if the data they'd produce would be an intersection. For example:
+   *
+   *   new Fragment().attr('id').merge(new Fragment().attr('name')) === new Fragment().attr('id', 'name')
+   *
+   * This is mergable, id and name can intersect. However:
+   *
+   *   const fragOne = new Fragment().fragment(new Fragment('dynamicAttribute').argument('id', '123').attr('id'));
+   *   const fragTwo = new Fragment().fragment(new Fragment('dynamicAttribute').argument('id', '321').attr('name'));
+   *
+   * The data would produce:
+   *
+   * query {
+   *   dynamicAttribute(id: '123') { id }
+   * }
+   *
+   * OR
+   *
+   * query {
+   *   dynamicAttribute(id: '321') { name }
+   * }
+   *
+   * and therefore these are not mergable. But if the id argument was the same then:
+   *
+   *   const fragOne = new Fragment().fragment(new Fragment('dynamicAttribute').argument('id', '123').attr('id'));
+   *   const fragTwo = new Fragment().fragment(new Fragment('dynamicAttribute').argument('id', '123').attr('name'));
+   *   const fragThree = fragOne.merge(fragTwo)
+   *
+   * this produces:
+   *
+   * query {
+   *   dynamicAttribute(id: '123') {
+   *      id
+   *      name
+   *   }
+   * }
+   *
+   * @param {Fragment} other
+   */
+  merge(other) {
+    if (!isEqual(this.variables, other.variables)) {
+      throw new Error('Cannot merge fragments with different variables');
+    }
+
+    if (this._union || other._union) {
+      throw new Error('Cannot merge union fragments');
+    }
+
+    return produce(this, draft => {
+      draft.attrs = [...new Set([...this.attrs, ...other.attrs])];
+
+      const otherFragments = other.fragments.slice(0);
+
+      draft.fragments = this.fragments.map(fragment => {
+        if (fragment.name) {
+          const index = otherFragments.findIndex(
+            f => f.name === fragment.name && f._alias === fragment._alias
+          );
+
+          if (index >= 0) {
+            const otherFragment = otherFragments[index];
+            otherFragments.splice(index, 1);
+            return fragment.merge(otherFragment);
+          }
+        }
+
+        return fragment;
+      });
+
+      if (otherFragments.length > 0) {
+        draft.fragments = [...draft.fragments, ...otherFragments];
+      }
+    });
+  }
+
+  /**
    * Add a variable by name and value. The type is optional and will be guessed
    * if not given.
    *
@@ -159,10 +266,12 @@ export default class Fragment {
    *
    * @param {string} name
    * @param {*} value
-   * @param {string=} type
+   * @param {(string|boolean)=} typeOrRequired
    * @returns {this}
    */
-  argument(name, value, type) {
+  argument(name, value, typeOrRequired) {
+    let type = typeof typeOrRequired === 'string' ? typeOrRequired : null;
+
     if (value instanceof EnumValue) {
       type = value.type;
       value = value.value;
@@ -193,6 +302,10 @@ export default class Fragment {
           this.name
         }`
       );
+    }
+
+    if (type && typeOrRequired === true) {
+      type = `${type}!`;
     }
 
     return this.variable({ key: name, name: name, type, value });
@@ -385,6 +498,8 @@ export default class Fragment {
    * @returns {import('graphql').SelectionSetNode}
    */
   toSelectionSet() {
+    if (!this.name) return this.selectionSet();
+
     return {
       kind: 'SelectionSet',
       selections: [this.toSelection()],
@@ -405,7 +520,7 @@ export default class Fragment {
         {
           kind: 'OperationDefinition',
           operation,
-          name: nameKind(name),
+          name: nameKind(name || 'GetData'),
           variableDefinitions: this.toParameters().map(([name, type]) =>
             variableDefinition(name, type)
           ),

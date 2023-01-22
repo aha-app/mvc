@@ -1,12 +1,41 @@
-import { print } from "graphql";
-import { enableMapSet, immerable, produce } from "immer";
-import { camelize, classify, pluralize } from "inflected";
-import ApplicationModel from "./ApplicationModel";
-import Fragment from "./Fragment";
-import { memoize } from "../utils/memoize";
-import { modelObject } from "./modelBuilder";
+import { uniq, isNil } from 'lodash';
+import { print } from 'graphql';
+import { enableMapSet, immerable, produce } from 'immer';
+import { camelize, classify, pluralize } from 'inflected';
+import ApplicationModel from './ApplicationModel';
+import { NotFoundError } from './Errors';
+import Fragment from './Fragment';
+import { memoize } from './lib/memoize';
+import { modelObject } from './modelBuilder';
 
 enableMapSet();
+
+function mergeArguments(args, newArgs) {
+  args = { ...args };
+
+  Object.keys(newArgs).forEach(key => {
+    if (Array.isArray(args[key])) {
+      args[key] = args[key].concat(newArgs[key]);
+    } else if (args[key]) {
+      args[key] = [].concat(args[key], newArgs[key]);
+    } else {
+      args[key] = newArgs[key];
+    }
+
+    if (Array.isArray(args[key])) {
+      args[key] = uniq(args[key]);
+    }
+  });
+
+  return args;
+}
+
+const PAGINATION_ARGUMENTS = ['per', 'page'];
+function canPaginate(args) {
+  return PAGINATION_ARGUMENTS.some(
+    paginationArg => !isNil(args?.[paginationArg])
+  );
+}
 
 /**
  * @typedef {Record<string, string | {type:string}>} FilterTypes
@@ -72,11 +101,25 @@ export default class Query {
       attrs = Array.from(arguments);
     }
 
-    return produce(this, (draft) => {
-      attrs.forEach((attr) => {
+    return produce(this, draft => {
+      attrs.forEach(attr => {
         draft.attrs.add(attr);
       });
     });
+  }
+
+  /**
+   * Adds all non-relationship attributes to the query selection
+   *
+   * Example: query.selectAll().find(1)
+   *
+   * @returns {Query<M,I>}
+   */
+  selectAll() {
+    const attrs = Object.entries(this.model.fields)
+      .filter(([_, config]) => config.type === 'attr')
+      .map(([name, _]) => name);
+    return this.select(attrs);
   }
 
   /**
@@ -90,10 +133,10 @@ export default class Query {
    * @returns {Query<M,I>} A Query object selecting `attrs`
    */
   union(query) {
-    return produce(this, (draft) => {
+    return produce(this, draft => {
       if (!draft.unions) {
         draft.unions = {};
-        draft.unions[draft.model.typename] = produce(draft, (subQueryDraft) => {
+        draft.unions[draft.model.typename] = produce(draft, subQueryDraft => {
           subQueryDraft.unions = {};
         });
       }
@@ -114,8 +157,8 @@ export default class Query {
    * @returns {Query<M,I>} A Query object selecting `attrs` on the page level
    */
   stats(attrs) {
-    return produce(this, (draft) => {
-      attrs.forEach((attr) => draft._stats.add(attr));
+    return produce(this, draft => {
+      attrs.forEach(attr => draft._stats.add(attr));
     });
   }
 
@@ -152,9 +195,25 @@ export default class Query {
    * @returns {Query<M,I>} An updated Query object
    */
   argument(args) {
-    return produce(this, (draft) => {
+    return produce(this, draft => {
       draft.arguments = { ...draft.arguments, ...args };
     });
+  }
+
+  /**
+   * Merges arguments into the query
+   *
+   * Example: query.argument({projectId: 1}).argumentMerge({projectId: 2})
+   *
+   * The above example will generate arguments of projectId: [1,2]
+   *
+   * @param {object} args The args to add to the query
+   * @returns {Query<M,I>} An updated Query object with those args added
+   */
+  argumentMerge(args) {
+    if (!args) return this;
+
+    return this.argument(mergeArguments(this.arguments, args));
   }
 
   /**
@@ -170,6 +229,22 @@ export default class Query {
   }
 
   /**
+   * Merges filters into the existing filters
+   *
+   * Example: query.whereMerge({projectId: 1}).whereMerge({projectId: 2})
+   *
+   * The above example would be the same as query.where({projectId: [1,2]})
+   *
+   * @param {object} filters The filters to add to the query
+   * @returns {Query<M,I>} An updated Query object with those filters added
+   */
+  whereMerge(filters) {
+    if (!filters) return this;
+
+    return this.rewhere(mergeArguments(this.filters, filters));
+  }
+
+  /**
    * Resets the filters on the query
    *
    * Example: query.rewhere({projectId: 15})
@@ -178,7 +253,7 @@ export default class Query {
    * @returns {Query<M,I>} An updated Query object with those filters added and all others removed
    */
   rewhere(filters) {
-    return produce(this, (draft) => {
+    return produce(this, draft => {
       draft.filters = filters;
     });
   }
@@ -204,7 +279,7 @@ export default class Query {
    * @returns {Query<M,I>} An updated Query object with that order criteria set to it
    */
   reorder(criteria) {
-    return produce(this, (draft) => {
+    return produce(this, draft => {
       draft.sort = criteria ?? {};
     });
   }
@@ -217,8 +292,19 @@ export default class Query {
    * @returns {Query<M,I>} An updated Query object selecting a single record
    */
   first() {
-    return produce(this, (draft) => {
+    return produce(this, draft => {
       draft.single = true;
+    });
+  }
+
+  /**
+   * When called the query will select multiple objects instead of single.
+   *
+   * @returns {Query<M, I>}
+   */
+  multiple() {
+    return produce(this, draft => {
+      draft.single = false;
     });
   }
 
@@ -239,7 +325,7 @@ export default class Query {
    */
   merge(subqueries) {
     Object.entries(subqueries).forEach(([name, value]) => {
-      subqueries = produce(subqueries, (draft) => {
+      subqueries = produce(subqueries, draft => {
         // Convert bare lists of columns into generic subqueries that
         // cannot run on their own.
         //
@@ -249,17 +335,60 @@ export default class Query {
         if (Array.isArray(value)) {
           draft[name] = new Query().select(value).first();
         } else {
-          draft[name] = produce(draft[name], (draft) => {
+          draft[name] = produce(draft[name], draft => {
             draft.paramTypes = this.model.fields[name]?.args;
-            draft.single = true;
+            if (!canPaginate(value.arguments)) {
+              draft.single = true;
+            }
           });
         }
       });
     });
 
-    return produce(this, (draft) => {
+    return produce(this, draft => {
       draft.subqueries = { ...draft.subqueries, ...subqueries };
     });
+  }
+
+  /**
+   * Deeply merges a collection of subqueries into a query. Rather than replacing an existing
+   * subquery, it appends/merges the query into the existing one.
+   *
+   * @param {object} subqueries The subqueries to merge into the query.
+   * @returns {Query<M,I>} An updated Query including the nested subqueries.
+   */
+  deepMerge(subqueries) {
+    let scope = this;
+
+    Object.keys(subqueries).forEach(name => {
+      const subquery = subqueries[name];
+      if (name in scope.subqueries) {
+        if (Array.isArray(subquery)) {
+          scope = scope.merge({
+            [name]: scope.subqueries[name].select(subquery),
+          });
+        } else if (subquery instanceof Query) {
+          scope = scope.merge({
+            [name]: scope.subqueries[name]
+              .select(subquery.attrs)
+              .deepMerge(subquery.subqueries)
+              .argumentMerge(subquery.arguments)
+              .whereMerge(subquery.filters),
+          });
+        } else {
+          scope = scope.merge({
+            [name]: scope.subqueries[name]
+              .deepMerge(subquery)
+              .argumentMerge(subquery.arguments)
+              .whereMerge(subquery.filters),
+          });
+        }
+      } else {
+        scope = scope.merge({ [name]: subquery });
+      }
+    });
+
+    return scope;
   }
 
   /**
@@ -271,12 +400,37 @@ export default class Query {
   async find(id) {
     const query = this.argument({ id }).first();
 
-    const data = await ApplicationModel.client.query(query.query, {
-      variables: query.queryVariables,
-    });
+    try {
+      const data = await ApplicationModel.client.query(query.query, {
+        variables: query.queryVariables,
+      });
+
+      if (data) {
+        return modelObject(data, { query })[query.queryName];
+      }
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        // Insert more info into the not found error
+        throw new NotFoundError(
+          `Could not find ${query.queryName} ${id}: ${error.message}`
+        );
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Executes this query, finding a single record by the specified filter.
+   *
+   * @param {object} filters The filters to add to the query
+   * @returns {Promise<I|undefined>} The requested model, or undefined if it couldn't be found.
+   */
+  async findBy(filters) {
+    const data = await this.where(filters).per(1).all();
 
     if (data) {
-      return modelObject(data, { query })[query.queryName];
+      return data[0];
     }
   }
 
@@ -310,11 +464,10 @@ export default class Query {
     let isLastPage = false;
     const totalRecords = [];
     pageCallback =
-      pageCallback ??
-      ((page) => totalRecords.push(...page.materializeRecords()));
+      pageCallback ?? (page => totalRecords.push(...page.materializeRecords()));
 
     do {
-      let page = await this.page(currentPage).stats(["isLastPage"]).all();
+      let page = await this.page(currentPage).stats(['isLastPage']).all();
 
       await pageCallback(page);
       isLastPage = page.isLastPage || page.nodes.length === 0;
@@ -358,15 +511,15 @@ export default class Query {
   get queryParametersString() {
     const params = this.queryFragment.toParameters();
 
-    if (params.length === 0) return "";
+    if (params.length === 0) return '';
 
     return (
-      "(" + params.map(([name, type]) => `$${name}: ${type}`).join(", ") + ")"
+      '(' + params.map(([name, type]) => `$${name}: ${type}`).join(', ') + ')'
     );
   }
 
   /**
-   * Returns the DocumentNode version fo the GraphQL query
+   * Returns the DocumentNode version of the GraphQL query
    */
   get query() {
     if (!this.model.typename) {
@@ -394,7 +547,7 @@ export default class Query {
    * in this query.
    */
   get cacheId() {
-    if (this.single && this.arguments["id"] && this.attrs.has("id")) {
+    if (this.single && this.arguments['id'] && this.attrs.has('id')) {
       return ApplicationModel.client.cacheId({
         __typename: this.model.name,
         ...this.filters,
@@ -411,7 +564,7 @@ export default class Query {
     // Add the filter parameter
     if (this.filters && Object.keys(this.filters).length > 0) {
       fragment = fragment.argument(
-        "filters",
+        'filters',
         this.filters,
         this.paramTypes.filters
       );
@@ -420,7 +573,7 @@ export default class Query {
     // Add the sort parameter
     if (Object.keys(this.sort).length > 0) {
       fragment = fragment.argument(
-        "order",
+        'order',
         Object.entries(this.sort).reduce(
           (acc, [name, direction]) => [...acc, { name, direction }],
           []
@@ -449,7 +602,7 @@ export default class Query {
   buildFragmentSubqueries(fragment) {
     // Get the fragments from the union queries. If there are any then they'll
     // take the place of this fragment
-    const unionFragments = Object.values(this.unions || {}).map((query) =>
+    const unionFragments = Object.values(this.unions || {}).map(query =>
       query.buildQueryFragment(null, true)
     );
 
@@ -463,7 +616,7 @@ export default class Query {
       );
 
       const attrFragments = Array.from(this.attrs)
-        .filter((attr) => typeof attr !== "string")
+        .filter(attr => typeof attr !== 'string')
         .flatMap((/** @type {SelectionObject} */ attr) =>
           Object.entries(attr).map(([name, args]) =>
             Object.entries(args).reduce(
@@ -477,7 +630,7 @@ export default class Query {
         .fragment(...subqueryFragments)
         .fragment(...attrFragments)
         .attr(
-          ...Array.from(this.attrs).filter((attr) => typeof attr === "string")
+          ...Array.from(this.attrs).filter(attr => typeof attr === 'string')
         );
     }
   }
@@ -504,7 +657,7 @@ export default class Query {
       // fragment that becomes the top level fragments only child, set the
       // query to 'nodes' and add all the attrs and subqueries to that
       return fragment
-        .fragment(this.buildFragmentSubqueries(new Fragment("nodes")))
+        .fragment(this.buildFragmentSubqueries(new Fragment('nodes')))
         .attr(...Array.from(this._stats));
     }
 
@@ -515,7 +668,7 @@ export default class Query {
    * Get the resolved immutable graphql fragment tree for this query
    */
   get queryFragment() {
-    return memoize(this, "queryFragment", () =>
+    return memoize(this, 'queryFragment', () =>
       this.buildQueryFragment().resolve()
     );
   }

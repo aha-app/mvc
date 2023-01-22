@@ -1,5 +1,6 @@
 import { gql } from '@apollo/client';
 import { observable } from '@nx-js/observer-util';
+import { MockLink } from '@apollo/client/testing';
 import ApolloModelClient from './ApolloModelClient';
 import ApplicationModel from './ApplicationModel';
 import Epic from './models/Epic';
@@ -8,7 +9,11 @@ import Requirement from './models/Requirement';
 import User from './models/User';
 
 function mockClient(mocks = []) {
-  ApplicationModel.client = new ApolloModelClient({ mocks: mocks });
+  const mockLink = new MockLink(mocks);
+  ApplicationModel.client = new ApolloModelClient({
+    addHttpLink: false,
+    links: [mockLink],
+  });
 }
 
 mockClient();
@@ -21,6 +26,18 @@ describe('ApplicationModel', () => {
 
     it("returns undefined given something that's not a reactive pattern", () => {
       expect(Epic.idFromReactivePattern('Feature-123')).toBeUndefined();
+    });
+  });
+
+  describe('reactiveId', () => {
+    it('returns the reactive pattern for a persisted record', () => {
+      const epic = new Epic({ id: 123 });
+      expect(epic.reactiveId).toEqual('Epic-123');
+    });
+
+    it('returns undefined for non-persisted records', () => {
+      const epic = new Epic();
+      expect(epic.reactiveId).toBeUndefined();
     });
   });
 
@@ -232,6 +249,58 @@ describe('ApplicationModel', () => {
       epic.teamWorkflowStatus = null;
       await epic.save();
     });
+
+    it('can setAttributes', async () => {
+      const epic = new Epic({
+        id: '123',
+        teamWorkflowStatus: { id: '456', name: 'In progress' },
+      });
+
+      epic.setAttributes({
+        workflowStatus: { name: 'In design' },
+        teamWorkflowStatus: null,
+      });
+
+      expect(epic.workflowStatus).toEqual({ name: 'In design' });
+      expect(epic.teamWorkflowStatus).toEqual(null);
+
+      await epic.save();
+    });
+  });
+
+  describe('#prepareAttributeForQuery', () => {
+    class CustomSerializerModel extends ApplicationModel {
+      static fields = {};
+
+      prepareForQuery() {
+        return { foo: 'bar' };
+      }
+    }
+
+    it('allows a model to prepare itself for a query', () => {
+      const epic = new Epic();
+      epic.release = new CustomSerializerModel();
+
+      expect(epic.prepareAttributeForQuery('release')).toEqual({ foo: 'bar' });
+    });
+  });
+
+  describe('update', () => {
+    class SampleModel extends ApplicationModel {
+      static fields = {};
+
+      set something(value) {
+        this.somethingValue = value;
+      }
+    }
+
+    it('calls setters with the values and then saves the model', async () => {
+      const model = new SampleModel();
+
+      await model.update({ something: 123 });
+
+      expect(model.somethingValue).toEqual(123);
+    });
   });
 
   describe('#destroy', () => {
@@ -284,6 +353,29 @@ describe('ApplicationModel', () => {
 
       const result = await iteration.destroy();
       expect(result).toEqual(true);
+    });
+  });
+
+  describe('#revert', () => {
+    it('restores attributes and reset dirty state', () => {
+      const epic = new Epic({
+        id: 123,
+        name: 'New epic',
+        position: 1,
+      });
+
+      epic.name = 'New name';
+      epic.position = 2;
+
+      expect(epic.name).toEqual('New name');
+      expect(epic.position).toEqual(2);
+      expect(epic.isDirty()).toEqual(true);
+
+      epic.revert();
+
+      expect(epic.name).toEqual('New epic');
+      expect(epic.position).toEqual(1);
+      expect(epic.isDirty()).toEqual(false);
     });
   });
 });

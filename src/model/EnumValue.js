@@ -11,4 +11,12 @@ export default class EnumValue {
   toString() {
     return this.value;
   }
+
+  toJSON() {
+    return this.toString();
+  }
+
+  equals(other) {
+    return this.type === other.type && this.value === other.value;
+  }
 }
