@@ -4,15 +4,15 @@ import {
   ControlledComponent,
   useController,
 } from './controller/ApplicationController';
-import ApplicationModel, {
-  attr,
-  belongsTo,
-  hasMany,
-} from './model/ApplicationModel';
-import ApolloModelClient from './model/ApolloModelClient';
-import { view as ApplicationView } from '@aha-app/react-easy-state';
+// @ts-ignore
+import { view } from '@aha-app/react-easy-state';
 import { raw, observe, unobserve } from '@nx-js/observer-util';
 import { randomId } from './utils/randomId';
+import type { ComponentType } from 'react';
+
+function ApplicationView<T extends ComponentType>(component: T): T {
+  return view(component);
+}
 
 // Export our public API.
 export default ApplicationController;
@@ -22,12 +22,6 @@ export {
   StartControllerScope,
   ControlledComponent,
   useController,
-  // Model
-  ApplicationModel,
-  ApolloModelClient,
-  attr,
-  belongsTo,
-  hasMany,
   // View
   ApplicationView,
   // observer.

@@ -1,11 +1,12 @@
 {
   "name": "@aha-app/mvc",
-  "version": "0.10.9",
+  "version": "0.10.9-jdw.1",
   "description": "Simple MVC framework using React for the view and GraphQL for the models.",
   "main": "dist/index.js",
   "type": "module",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "node config/build.js && cp src/index.d.ts dist/"
+    "build": "rimraf dist && node config/build.js"
   },
   "repository": {
     "type": "git",
@@ -16,17 +17,19 @@
   "homepage": "https://github.com/aha-app/mvc#readme",
   "dependencies": {
     "@aha-app/react-easy-state": "^0.0.10-development",
-    "@apollo/client": "^3.1.2",
     "caf": "^9.0.0",
     "debug": "^4.1.0",
-    "esbuild": "^0.12.22",
-    "graphql": "^15.3.0",
-    "immer": "^9.0.6",
-    "inflected": "^2.0.4",
-    "lodash": "npm:lodash-es@^4.17.21"
+    "lodash": "^4.17.21 || npm:lodash-es@^4.17.21"
   },
   "peerDependencies": {
     "react": "^16.8.4",
     "react-dom": "^16.8.4"
+  },
+  "devDependencies": {
+    "@types/react": "^16.14.40",
+    "esbuild": "^0.12.22",
+    "esbuild-plugin-d.ts": "^1.1.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.0.4"
   }
 }
