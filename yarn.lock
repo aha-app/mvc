@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@aha-app/react-easy-state@^0.0.10-development":
-  version "0.0.10-development"
-  resolved "https://registry.yarnpkg.com/@aha-app/react-easy-state/-/react-easy-state-0.0.10-development.tgz#21a179f66f898613d746f1982d48a8da6097dbbe"
-  integrity sha512-hFFvmLZLymT1/wwQSsAnsyVVsbQA24JZRrX3bWtM1AVTegrNkOSk1tv6R7j9VgxO5/ZESbs4HNsfoTXX7O3gZA==
+"@aha-app/react-easy-state@^0.0.12-development":
+  version "0.0.12-development"
+  resolved "https://registry.yarnpkg.com/@aha-app/react-easy-state/-/react-easy-state-0.0.12-development.tgz#a4c2b19cfb3a52a83622e2a1fff1f88fedb40c2f"
+  integrity sha512-V18+9yvg4QmgJfhFsDk9VrzSSXlyKlzNOiYAZtMmatPFcRCVbwuL2mWknvBhweEoto7Hq+ONwxpHEuX3beQYpQ==
   dependencies:
     "@nx-js/observer-util" "^4.3.0-alpha.2"
 

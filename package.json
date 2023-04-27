@@ -16,7 +16,7 @@
   "license": "UNLICENSED",
   "homepage": "https://github.com/aha-app/mvc#readme",
   "dependencies": {
-    "@aha-app/react-easy-state": "^0.0.10-development",
+    "@aha-app/react-easy-state": "^0.0.12-development",
     "caf": "^9.0.0",
     "debug": "^4.1.0",
     "lodash": "^4.17.21 || npm:lodash-es@^4.17.21"
