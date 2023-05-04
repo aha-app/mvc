@@ -9,7 +9,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "rimraf dist && node config/build.js",
+    "build": "rimraf dist && node config/build.js && tsc",
     "prepare": "yarn build"
   },
   "repository": {
