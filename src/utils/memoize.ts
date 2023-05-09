@@ -27,14 +27,12 @@ const memoized = new WeakMap();
  * calc1 === something.expensiveCalculation(); // true
  * calc1 === something2.expensiveCalculation(); // false
  * ```
- *
- * @template T
- * @param {object} object
- * @param {string} key
- * @param {(() => T)} value
- * @returns {T}
  */
-export function memoize(object, key, value) {
+export function memoize<T extends object>(
+  object: T,
+  key: string,
+  value: () => T
+): T {
   if (!memoized.has(object)) {
     memoized.set(object, new Map());
   }

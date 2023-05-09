@@ -1,7 +1,6 @@
-
 // Adds two arrays for the given base (10 or 16), returning the result.
 // This turns out to be the only "primitive" operation we need.
-const add = function (x, y, base) {
+const add = function (x: number[], y: number[], base: number) {
   const z = [];
   const n = Math.max(x.length, y.length);
   let carry = 0;
@@ -19,7 +18,7 @@ const add = function (x, y, base) {
 
 // Returns a*x, where x is an array of decimal digits and a is an ordinary
 // JavaScript number. base is the number base of the array x.
-const multiplyByNumber = function (num, x, base) {
+const multiplyByNumber = function (num: number, x: number[], base: number) {
   if (num < 0) {
     return null;
   }

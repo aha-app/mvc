@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "jsx": "preserve",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "dist",
+    "skipLibCheck": true,
+    "module": "AMD",
+    "moduleResolution": "node",
+    "target": "ES2018",
+    "sourceMap": true
+  },
+  "include": ["src/**/*"]
+}
