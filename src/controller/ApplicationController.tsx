@@ -146,6 +146,10 @@ class ApplicationController<
    */
   destroy() {}
 
+  /**
+   * Internal destroy function. Do not override
+   * @private
+   */
   internalDestroy() {
     this.destroy();
   }
@@ -326,7 +330,6 @@ function Controller<Props = {}>({
   useEffect(() => {
     return () => {
       debug('Destroying controller');
-      if (controller.destroy) controller.destroy();
       controller.internalDestroy();
     };
   }, [controller]);
