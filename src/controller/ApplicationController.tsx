@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { ComponentProps, useContext, useEffect, useState } from 'react';
 import type { ComponentType, FC, ReactNode } from 'react';
 // @ts-ignore
 import { store } from '@aha-app/react-easy-state';
@@ -271,13 +271,16 @@ class ApplicationController<
  *   ...
  *   whiteboardController.current.actionPanIntoView();
  */
-function StartControllerScope<T extends ApplicationControllerConstructor<any>>(
+function StartControllerScope<
+  T extends ApplicationControllerConstructor<any>,
+  C extends ComponentType<any>
+>(
   ControllerClass: T,
-  ControlledComponent: ComponentType<Partial<GetControllerProps<T>>>
-): ComponentType<GetControllerProps<T>> {
+  ControlledComponent: C
+): ComponentType<GetControllerProps<T> & ComponentProps<C>> {
   // Use React.memo here so if props don't change then we don't re-render and
   // allocate a new controller instance.
-  return React.memo(controllerInitialArgs => {
+  return React.memo((controllerInitialArgs: any) => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const [controller] = useState(new ControllerClass());
 
