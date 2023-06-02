@@ -23,7 +23,8 @@
     "@aha-app/react-easy-state": "^0.0.12-development",
     "caf": "^9.0.0",
     "debug": "^4.1.0",
-    "lodash": "^4.17.21 || npm:lodash-es@^4.17.21"
+    "lodash": "^4.17.21 || npm:lodash-es@^4.17.21",
+    "prettier": "^2.8.8"
   },
   "peerDependencies": {
     "react": "^16.8.4",
