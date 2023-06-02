@@ -30,6 +30,30 @@ type GetControllerConstructor<T> = { new (): T };
 type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
   T extends ApplicationControllerConstructor<infer P> ? P : never;
 
+export function findController(
+  controller: ApplicationController,
+  finder: (controller: ApplicationController) => boolean
+): ApplicationController | undefined {
+  do {
+    if (finder(controller)) {
+      return controller;
+    }
+
+    // Look further up the hierarchy.
+    controller = controller.parent;
+  } while (controller);
+}
+
+export function findControllerInstance<T extends ApplicationController>(
+  controller: ApplicationController,
+  controllerClass: GetControllerConstructor<T>
+): T | undefined {
+  return findController(
+    controller,
+    _controller => _controller.constructor === controllerClass
+  ) as T | undefined;
+}
+
 /**
  * General rules to follow for using controllers:
  *
@@ -95,17 +119,10 @@ class ApplicationController<
       },
       has(targetController, prop) {
         if (typeof prop === 'string' && prop.startsWith('action')) {
-          let currentController:
-            | ApplicationController<State, Props, Parent>
-            | Parent = targetController;
-          do {
-            if (prop in currentController) {
-              return true;
-            }
-            currentController = currentController.parent;
-          } while (currentController);
-
-          return false;
+          return !!findController(
+            targetController,
+            controller => prop in controller
+          );
         } else {
           return Reflect.has(targetController, prop);
         }
@@ -380,10 +397,7 @@ function useController<T extends ApplicationController>(
   // If a controller class constructor argument is given then traverse up the
   // tree until the appropriate controller type is found
   if (controllerClass) {
-    do {
-      if (controller.constructor === controllerClass) break;
-      controller = controller.parent;
-    } while (controller);
+    controller = findControllerInstance(controller, controllerClass);
   }
 
   const statefulController: T = controller;
