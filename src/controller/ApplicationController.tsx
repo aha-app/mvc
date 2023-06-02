@@ -156,7 +156,7 @@ class ApplicationController<
       );
 
       // @ts-ignore
-      this.state = store(cloneDeep(this.constructor.initialState));
+      this.state = store(cloneDeep(this.initialState));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
     } else {
@@ -168,6 +168,17 @@ class ApplicationController<
    * Controllers can override this method to cleanup when removed
    */
   destroy() {}
+
+  /**
+   * Creates the initial state of the controller.
+   */
+  get initialState(): State {
+    if ('initialState' in this.constructor) {
+      return this.constructor.initialState as State;
+    }
+
+    return {} as State;
+  }
 
   /**
    * Internal destroy function. Do not override
