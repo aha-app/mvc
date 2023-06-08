@@ -185,7 +185,7 @@ class ApplicationController<
     controllerClass: GetControllerConstructor<T>
   ): T | undefined {
     return this.findController(
-      _controller => _controller.constructor === controllerClass
+      _controller => _controller instanceof controllerClass
     ) as T | undefined;
   }
 
