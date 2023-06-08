@@ -30,30 +30,6 @@ type GetControllerConstructor<T> = { new (): T };
 type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
   T extends ApplicationControllerConstructor<infer P> ? P : never;
 
-export function findController(
-  controller: ApplicationController,
-  finder: (controller: ApplicationController) => boolean
-): ApplicationController | undefined {
-  do {
-    if (finder(controller)) {
-      return controller;
-    }
-
-    // Look further up the hierarchy.
-    controller = controller.parent;
-  } while (controller);
-}
-
-export function findControllerInstance<T extends ApplicationController>(
-  controller: ApplicationController,
-  controllerClass: GetControllerConstructor<T>
-): T | undefined {
-  return findController(
-    controller,
-    _controller => _controller.constructor === controllerClass
-  ) as T | undefined;
-}
-
 /**
  * General rules to follow for using controllers:
  *
@@ -119,8 +95,7 @@ class ApplicationController<
       },
       has(targetController, prop) {
         if (typeof prop === 'string' && prop.startsWith('action')) {
-          return !!findController(
-            targetController,
+          return !!targetController.findController(
             controller => prop in controller
           );
         } else {
@@ -186,6 +161,32 @@ class ApplicationController<
    */
   internalDestroy() {
     this.destroy();
+  }
+
+  /**
+   * Finds a controller in this controller's hierarchy that matches a finder.
+   */
+  findController(
+    finder: (controller: ApplicationController) => boolean
+  ): ApplicationController | undefined {
+    let controller: ApplicationController = this;
+
+    do {
+      if (finder(controller)) {
+        return controller;
+      }
+
+      // Look further up the hierarchy.
+      controller = controller.parent;
+    } while (controller);
+  }
+
+  findControllerInstance<T extends ApplicationController>(
+    controllerClass: GetControllerConstructor<T>
+  ): T | undefined {
+    return this.findController(
+      _controller => _controller.constructor === controllerClass
+    ) as T | undefined;
   }
 
   /**
@@ -408,7 +409,7 @@ function useController<T extends ApplicationController>(
   // If a controller class constructor argument is given then traverse up the
   // tree until the appropriate controller type is found
   if (controllerClass) {
-    controller = findControllerInstance(controller, controllerClass);
+    controller = controller.findControllerInstance(controllerClass);
   }
 
   const statefulController: T = controller;

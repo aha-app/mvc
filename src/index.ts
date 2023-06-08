@@ -3,8 +3,6 @@ import {
   StartControllerScope,
   ControlledComponent,
   useController,
-  findController,
-  findControllerInstance,
 } from './controller/ApplicationController';
 // @ts-ignore
 import { view } from '@aha-app/react-easy-state';
@@ -24,8 +22,6 @@ export {
   StartControllerScope,
   ControlledComponent,
   useController,
-  findController,
-  findControllerInstance,
   // View
   ApplicationView,
   // observer.
