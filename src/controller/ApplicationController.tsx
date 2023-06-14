@@ -195,6 +195,8 @@ class ApplicationController<
    *
    * You need this if you're using `.save()` to create a
    * record and want the updated record to trigger state updates.
+   *
+   * @deprecated just use observable() directly, no need for _tempObservable.
    */
   observable(obj: any) {
     this.state._tempObservable = obj;
