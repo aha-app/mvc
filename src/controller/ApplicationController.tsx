@@ -56,6 +56,7 @@ class ApplicationController<
   state: State & { _tempObservable: any };
   cancelTokens: Record<string, any>;
   proxiedThis: any;
+  _debug = Debug(`controller:${this.constructor.name}`);
 
   constructor() {
     this.id = randomId();
@@ -249,6 +250,16 @@ class ApplicationController<
       const descriptor = Object.getOwnPropertyDescriptor(mixin, key);
       Object.defineProperty(this.prototype, key, descriptor);
     });
+  }
+
+  /**
+   * Output to debugger with the controller name. Set localStorage.debug to
+   * 'controller:*' or 'controller:MyController' to see debug output.
+   *
+   * @param args messages to log
+   */
+  debug(...args: any[]) {
+    this._debug(...args);
   }
 }
 
