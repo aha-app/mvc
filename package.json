@@ -23,8 +23,7 @@
     "@aha-app/react-easy-state": "^0.0.12-development",
     "caf": "^9.0.0",
     "debug": "^4.1.0",
-    "lodash": "^4.17.21 || npm:lodash-es@^4.17.21",
-    "prettier": "^2.8.8"
+    "lodash": "^4.17.21 || npm:lodash-es@^4.17.21"
   },
   "peerDependencies": {
     "react": "^16.8.4",
@@ -34,6 +33,7 @@
     "@types/react": "^16.14.40",
     "esbuild": "^0.12.22",
     "esbuild-plugin-d.ts": "^1.1.0",
+    "prettier": "^2.8.8",
     "rimraf": "^5.0.0",
     "typescript": "^5.0.4"
   }
