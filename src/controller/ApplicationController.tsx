@@ -96,17 +96,9 @@ class ApplicationController<
       },
       has(targetController, prop) {
         if (typeof prop === 'string' && prop.startsWith('action')) {
-          let currentController:
-            | ApplicationController<State, Props, Parent>
-            | Parent = targetController;
-          do {
-            if (prop in currentController) {
-              return true;
-            }
-            currentController = currentController.parent;
-          } while (currentController);
-
-          return false;
+          return !!targetController.findController(
+            controller => prop in controller
+          );
         } else {
           return Reflect.has(targetController, prop);
         }
@@ -140,7 +132,7 @@ class ApplicationController<
       );
 
       // @ts-ignore
-      this.state = store(cloneDeep(this.constructor.initialState));
+      this.state = store(cloneDeep(this.initialState));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
     } else {
@@ -154,6 +146,17 @@ class ApplicationController<
   destroy() {}
 
   /**
+   * Creates the initial state of the controller.
+   */
+  get initialState(): State {
+    if ('initialState' in this.constructor) {
+      return this.constructor.initialState as State;
+    }
+
+    return {} as State;
+  }
+
+  /**
    * Internal destroy function. Do not override
    * @private
    */
@@ -162,11 +165,39 @@ class ApplicationController<
   }
 
   /**
+   * Finds a controller in this controller's hierarchy that matches a finder.
+   */
+  findController(
+    finder: (controller: ApplicationController) => boolean
+  ): ApplicationController | undefined {
+    let controller: ApplicationController = this;
+
+    do {
+      if (finder(controller)) {
+        return controller;
+      }
+
+      // Look further up the hierarchy.
+      controller = controller.parent;
+    } while (controller);
+  }
+
+  findControllerInstance<T extends ApplicationController>(
+    controllerClass: GetControllerConstructor<T>
+  ): T | undefined {
+    return this.findController(
+      _controller => _controller instanceof controllerClass
+    ) as T | undefined;
+  }
+
+  /**
    * Force a record to be an observed instance that will
    * trigger observers on the controller state.
    *
    * You need this if you're using `.save()` to create a
    * record and want the updated record to trigger state updates.
+   *
+   * @deprecated just use observable() directly, no need for _tempObservable.
    */
   observable(obj: any) {
     this.state._tempObservable = obj;
@@ -391,10 +422,7 @@ function useController<T extends ApplicationController>(
   // If a controller class constructor argument is given then traverse up the
   // tree until the appropriate controller type is found
   if (controllerClass) {
-    do {
-      if (controller.constructor === controllerClass) break;
-      controller = controller.parent;
-    } while (controller);
+    controller = controller.findControllerInstance(controllerClass);
   }
 
   const statefulController: T = controller;

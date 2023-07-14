@@ -6,7 +6,7 @@ import {
 } from './controller/ApplicationController';
 // @ts-ignore
 import { view } from '@aha-app/react-easy-state';
-import { raw, observe, unobserve } from '@nx-js/observer-util';
+import { raw, observable, observe, unobserve } from '@nx-js/observer-util';
 import { randomId } from './utils/randomId';
 import type { ComponentType } from 'react';
 
@@ -26,6 +26,7 @@ export {
   ApplicationView,
   // observer.
   raw,
+  observable,
   observe,
   unobserve,
   // utils
