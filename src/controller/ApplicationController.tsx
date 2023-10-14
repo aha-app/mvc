@@ -1,34 +1,62 @@
+import { observable } from '@nx-js/observer-util';
+import CAF from 'caf';
+import Debug from 'debug';
+import { cloneDeep } from 'lodash';
+import type { FC, ReactNode } from 'react';
 import React, {
-  ComponentProps,
-  Ref,
   useContext,
   useEffect,
+  useId,
+  useMemo,
+  useRef,
   useState,
 } from 'react';
-import type { ComponentType, FC, ReactNode } from 'react';
-// @ts-ignore
-import { store } from '@aha-app/react-easy-state';
-import Debug from 'debug';
-import { randomId } from '../utils/randomId';
-import CAF from 'caf';
-import { cloneDeep } from 'lodash';
 
 const debug = Debug('framework:controller');
 
+interface ApplicationController<
+  State = object,
+  Props = object,
+  Parent = UndefApp
+> {
+  constructor: Function & {
+    initialState: State;
+  };
+  initialize(props: Props): void | Promise<void>;
+}
 class ControllerNoActionError extends Error {}
 
 export type GenericApplicationController = ApplicationController<any, any, any>;
-interface Constructor<C extends ApplicationController> {
-  new (...args: any[]): C;
+
+export interface ApplicationControllerConstructor<
+  State extends object = object,
+  Props = object,
+  Parent = UndefApp
+> {
+  new (id: string): ApplicationController<State, Props, Parent>;
 }
 
-type ApplicationControllerConstructor<P> = {
-  new (): { initialize(props: P): Promise<void> };
-};
-type GetControllerConstructor<T> = { new (): T };
+type UndefApp = GenericApplicationController | undefined | null;
 
-type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
-  T extends ApplicationControllerConstructor<infer P> ? P : never;
+interface Constructor<C extends ApplicationController> {
+  new (id: string): C;
+}
+
+type ControllerProps<
+  T extends ApplicationControllerConstructor | ApplicationController
+> = T extends ApplicationControllerConstructor<any, infer P, unknown>
+  ? P
+  : T extends ApplicationController<any, infer P, unknown>
+  ? P
+  : {};
+
+export type ControllerState<
+  T extends ApplicationControllerConstructor | ApplicationController
+> = T extends ApplicationControllerConstructor<infer S, unknown, unknown>
+  ? S
+  : T extends ApplicationController<infer S, unknown, unknown>
+  ? S
+  : {};
 
 /**
  * General rules to follow for using controllers:
@@ -43,14 +71,12 @@ type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
  * 4. Action functions can be called from anywhere, including event handlers,
  *    callbacks, after `await`, render methods, and from within other action
  *    functions.
- *
  */
 class ApplicationController<
-  State = any,
-  Props = any,
-  Parent extends ApplicationController<any, any, any> = any
+  State extends object = object,
+  Props = object,
+  Parent = UndefApp
 > {
-  id: string;
   initialized: boolean;
   parent: Parent;
   state: State & { _tempObservable: any };
@@ -58,8 +84,7 @@ class ApplicationController<
   proxiedThis: any;
   _debug = Debug(`controller:${this.constructor.name}`);
 
-  constructor() {
-    this.id = randomId();
+  constructor(public id: string) {
     this.initialized = false;
     this.parent = null;
     this.state = undefined;
@@ -75,6 +100,7 @@ class ApplicationController<
             | Parent = targetController;
           let currentProxy = receiver;
           do {
+            // @ts-ignore
             if (prop in currentController) {
               // We need to change this when the method is invoked, so rewrite
               // the function.
@@ -83,6 +109,7 @@ class ApplicationController<
               };
             }
             // Look further up the hierarchy.
+            // @ts-ignore
             currentController = currentController.parent;
             currentProxy = currentProxy.parent;
           } while (currentController);
@@ -114,36 +141,35 @@ class ApplicationController<
    *
    * @abstract
    */
-  async initialize(props: Props): Promise<void> {}
+  initialize(props: Props): void | Promise<void> {}
 
   /**
    * Internal initializer function
    *
    * @hidden
    */
-  internalInitialize(parentController: Parent, initialArgs: Props) {
-    if (!this.initialized) {
-      this.parent = parentController;
-
-      debug(
-        `Initializing ${this.constructor.name}${
-          parentController ? ' > ' + parentController.constructor.name : ''
-        }`
-      );
-
-      // @ts-ignore
-      this.state = store(cloneDeep(this.initialState));
-      if (this.initialize) this.initialize(initialArgs);
-      this.initialized = true;
-    } else {
-      this.changeProps(initialArgs);
+  async internalInitialize(
+    parentController: Parent,
+    initialArgs: Props
+  ): Promise<void> {
+    if (this.initialized) {
+      await this.changeProps(initialArgs);
+      return;
     }
-  }
 
-  /**
-   * Controllers can override this method to cleanup when removed
-   */
-  destroy() {}
+    this.parent = parentController;
+
+    debug(
+      `Initializing ${this.constructor.name}(${this.id})${
+        parentController ? ' > ' + parentController.constructor.name : ''
+      }`
+    );
+
+    this.resetState();
+
+    this.initialized = true;
+    await this.initialize(initialArgs);
+  }
 
   /**
    * Creates the initial state of the controller.
@@ -156,25 +182,34 @@ class ApplicationController<
     return {} as State;
   }
 
+  resetState() {
+    this.state = observable(cloneDeep(this.initialState));
+  }
+  /**
+   * Controllers can override this method to cleanup when removed
+   */
+  destroy(): void {}
+
   /**
    * Internal destroy function. Do not override
    * @private
    */
   internalDestroy() {
     this.destroy();
+    this.initialized = false;
   }
 
   /**
    * Finds a controller in this controller's hierarchy that matches a finder.
    */
-  findController(
-    finder: (controller: ApplicationController) => boolean
-  ): ApplicationController | undefined {
-    let controller: ApplicationController = this;
+  findController<C extends ApplicationController>(
+    finder: (controller: GenericApplicationController) => boolean
+  ): C | undefined {
+    let controller: GenericApplicationController = this;
 
     do {
       if (finder(controller)) {
-        return controller;
+        return controller as C;
       }
 
       // Look further up the hierarchy.
@@ -183,7 +218,7 @@ class ApplicationController<
   }
 
   findControllerInstance<T extends ApplicationController>(
-    controllerClass: GetControllerConstructor<T>
+    controllerClass: Constructor<T>
   ): T | undefined {
     return this.findController(
       _controller => _controller instanceof controllerClass
@@ -261,7 +296,7 @@ class ApplicationController<
    *
    * @abstract
    */
-  changeProps(newProps: Props) {}
+  async changeProps(newProps: Props) {}
 
   /**
    * Partially set state
@@ -320,21 +355,21 @@ class ApplicationController<
  *   whiteboardController.current.actionPanIntoView();
  */
 function StartControllerScope<
-  T extends ApplicationControllerConstructor<any>,
-  C extends ComponentType<any>
+  C extends ApplicationControllerConstructor,
+  T extends React.ComponentType<any>
 >(
-  ControllerClass: T,
-  ControlledComponent: C
-): ComponentType<
-  GetControllerProps<T> & {
-    controllerRef?: Ref<InstanceType<T>>;
-  } & ComponentProps<C>
-> {
+  ControllerClass: C,
+  ControlledComponent: T
+): React.ComponentType<ControllerProps<C> & React.ComponentProps<T>> {
   // Use React.memo here so if props don't change then we don't re-render and
   // allocate a new controller instance.
-  return React.memo((controllerInitialArgs: any) => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const [controller] = useState(new ControllerClass());
+  return React.memo(controllerInitialArgs => {
+    const id = useId();
+    const controller = useMemo(() => new ControllerClass(id), []);
+
+    if (!controller) {
+      throw new Error('No controller is set');
+    }
 
     if (controllerInitialArgs?.controllerRef) {
       if (typeof controllerInitialArgs.controllerRef === 'function') {
@@ -352,47 +387,74 @@ function StartControllerScope<
 
     return (
       <Controller
-        controller={controller as any}
+        controller={controller}
         controllerInitialArgs={controllerInitialArgs}
-        key={(controller as any).id}
+        key={controller.id}
       >
-        <ControlledComponent {...controllerInitialArgs} />
+        <ControlledComponent {...(controllerInitialArgs as any)} />
       </Controller>
     );
   });
 }
 
-export const ControllerContext = React.createContext(null);
+const ControllerContext = React.createContext<ApplicationController | null>(
+  null
+);
 
 /**
  * A component that initializes a controller instance and wraps its
  * child with a context containing that instance.
  */
-function Controller<Props = {}>({
+function Controller<
+  C extends ApplicationController<object, unknown, UndefApp>
+>({
   children,
   controller,
   controllerInitialArgs,
 }: {
   children: ReactNode;
-  controller: ApplicationController<any, Props, any>;
-  controllerInitialArgs: Props;
+  controller: C;
+  controllerInitialArgs: ControllerProps<C>;
 }) {
   const parentController = useContext(ControllerContext);
+  const destroyRef = useRef<number | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
-  controller.internalInitialize(parentController, controllerInitialArgs);
+  useMemo(() => {
+    controller
+      .internalInitialize(parentController, controllerInitialArgs)
+      .catch(err => {
+        setError(err);
+      });
+  }, [controller, parentController, controllerInitialArgs]);
 
-  // Give controller a chance to deregister when it is removed.
+  // Give controller a chance to deregister when it is removed. If the component
+  // is just remounting then we don't want to destroy the controller so do this
+  // in a cancellable timeout.
   useEffect(() => {
+    if (destroyRef.current) {
+      window.clearTimeout(destroyRef.current);
+      destroyRef.current = null;
+    }
+
     return () => {
-      debug('Destroying controller');
-      controller.internalDestroy();
+      destroyRef.current = window.setTimeout(() => {
+        debug(
+          `Destroying controller ${controller.constructor.name}(${controller.id})`
+        );
+        controller.internalDestroy();
+      }, 1);
     };
   }, [controller]);
 
+  if (error) {
+    throw error;
+  }
+
   return (
-    <ControllerContext.Provider value={controller}>
+    <ControlledComponent controller={controller}>
       {children}
-    </ControllerContext.Provider>
+    </ControlledComponent>
   );
 }
 
@@ -401,7 +463,8 @@ function Controller<Props = {}>({
  * needs to live longer than its direct parent in the component hierarchy.
  */
 const ControlledComponent: FC<{
-  controller: ApplicationController<any, any, any>;
+  children: ReactNode;
+  controller: ApplicationController;
 }> = ({ children, controller }) => {
   return (
     <ControllerContext.Provider value={controller}>
@@ -414,10 +477,11 @@ const ControlledComponent: FC<{
  * Returns the controller instance created by the closest
  * ControllerContext.
  */
-function useController<T extends ApplicationController>(
-  controllerClass: GetControllerConstructor<T> | undefined = undefined
-): T {
+function useController<Controller extends ApplicationController>(
+  controllerClass: Constructor<Controller> | undefined = undefined
+): Controller {
   let controller = useContext(ControllerContext);
+  if (!controller) throw new Error('Could not find controller');
 
   // If a controller class constructor argument is given then traverse up the
   // tree until the appropriate controller type is found
@@ -425,14 +489,14 @@ function useController<T extends ApplicationController>(
     controller = controller.findControllerInstance(controllerClass);
   }
 
-  const statefulController: T = controller;
-  return statefulController;
+  if (!controller) throw new Error('Could not find controller');
+  return controller as Controller;
 }
 
 export {
   ApplicationController,
-  StartControllerScope,
-  Controller,
   ControlledComponent,
+  Controller,
+  StartControllerScope,
   useController,
 };
