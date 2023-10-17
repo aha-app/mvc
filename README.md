@@ -41,10 +41,15 @@ The framework should be lightweight enough to be attractive to use for very simp
 
 ```js
 import React from 'react';
-import { ApplicationController, ApplicationView } from '@aha-app/mvc';
+import {
+  ApplicationController,
+  ApplicationView,
+  StartControllerScope,
+  useController,
+} from '@aha-app/mvc';
 
 class CounterController extends ApplicationController {
-  get initializeState() {
+  get initialState() {
     return { count: 0 };
   }
 
@@ -72,7 +77,10 @@ const Counter = () => {
   );
 };
 
-export default ApplicationView(Counter);
+export default StartControllerScope(
+  CounterController,
+  ApplicationView(Counter)
+);
 ```
 
 ## API
