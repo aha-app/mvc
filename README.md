@@ -39,6 +39,37 @@ The framework should be lightweight enough to be attractive to use for very simp
 
 ## Example
 
+```js
+class CounterController extends ApplicationController {
+  get initializeState() {
+    return { count: 0 }
+  }
+
+  actionIncrement() {
+    this.state.count += 1;
+  }
+
+  actionDecrement() {
+    this.state.count -= 1;
+  }
+}
+
+const Counter = () => {
+  const controller = useController();
+  const { count } = controller.state;
+
+  return <div>
+    <div>{count}</div>
+    <div>
+      <button onClick={() => controller.actionIncrement()}>+</button>
+      <button onClick={() => controller.actionDecrement()}>-</button>
+    </div>
+  </div>
+}
+
+export default ApplicationView(Counter);
+```
+
 
 ## API
 
