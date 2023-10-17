@@ -2,12 +2,12 @@
 
 "Have your state and mutate it too"
 
-This framework combines other libraries to provide a Model-View-Controller (MVC) 
+This framework combines other libraries to provide a Model-View-Controller (MVC)
 architecture for code in the browser. The key libraries are:
 
-* Model - GraphQL
-* View - [React](https://reactjs.org/)
-* Controller - [React Easy State](https://github.com/RisingStack/react-easy-state)
+- Model - GraphQL
+- View - [React](https://reactjs.org/)
+- Controller - [React Easy State](https://github.com/RisingStack/react-easy-state)
 
 ## Objectives
 
@@ -40,9 +40,12 @@ The framework should be lightweight enough to be attractive to use for very simp
 ## Example
 
 ```js
+import React from 'react';
+import { ApplicationController, ApplicationView } from '@aha-app/mvc';
+
 class CounterController extends ApplicationController {
   get initializeState() {
-    return { count: 0 }
+    return { count: 0 };
   }
 
   actionIncrement() {
@@ -58,18 +61,19 @@ const Counter = () => {
   const controller = useController();
   const { count } = controller.state;
 
-  return <div>
-    <div>{count}</div>
+  return (
     <div>
-      <button onClick={() => controller.actionIncrement()}>+</button>
-      <button onClick={() => controller.actionDecrement()}>-</button>
+      <div>{count}</div>
+      <div>
+        <button onClick={() => controller.actionIncrement()}>+</button>
+        <button onClick={() => controller.actionDecrement()}>-</button>
+      </div>
     </div>
-  </div>
-}
+  );
+};
 
 export default ApplicationView(Counter);
 ```
-
 
 ## API
 
