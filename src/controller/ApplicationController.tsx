@@ -430,7 +430,8 @@ function Controller<
 
   // Give controller a chance to deregister when it is removed. If the component
   // is just remounting then we don't want to destroy the controller so do this
-  // in a cancellable timeout.
+  // in a cancellable timeout. Remounting happens in dev automatically from
+  // React 18.
   useEffect(() => {
     if (destroyRef.current) {
       window.clearTimeout(destroyRef.current);
