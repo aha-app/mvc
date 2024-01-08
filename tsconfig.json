@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "jsx": "preserve",
+    "jsx": "react",
     "declaration": true,
     "emitDeclarationOnly": true,
     "declarationDir": "dist",
