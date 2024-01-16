@@ -2,12 +2,21 @@
 
 "Have your state and mutate it too"
 
-This framework combines other libraries to provide a Model-View-Controller (MVC) 
+This framework combines other libraries to provide a Model-View-Controller (MVC)
 architecture for code in the browser. The key libraries are:
 
 * Model - GraphQL
 * View - [React](https://reactjs.org/)
 * Controller - [React Easy State](https://github.com/RisingStack/react-easy-state)
+
+## Example
+
+See `./demo/counter.tsx` for a simple controller example. To run the demo in your browser:
+
+```
+yarn
+yarn demo
+```
 
 ## Objectives
 
@@ -36,9 +45,6 @@ Avoiding re-rendering is critical for good React performance. In most cases the 
 #### Proportionality
 
 The framework should be lightweight enough to be attractive to use for very simple, even single-component, applications. It should also scale to sophisticated applications involving many components and many controllers. A developer should not have to think too hard to determine if it is worth the overhead of introducing the framework - they should always want to reach for it.
-
-## Example
-
 
 ## API
 
