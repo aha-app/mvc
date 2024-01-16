@@ -46,9 +46,9 @@ type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
  *
  */
 class ApplicationController<
-  State = any,
-  Props = any,
-  Parent extends ApplicationController<any, any, any> = any
+  State extends {} = {},
+  Props extends {} = {},
+  Parent extends ApplicationController = any
 > {
   id: string;
   initialized: boolean;
