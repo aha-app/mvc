@@ -7,7 +7,7 @@ import {
 } from '../src';
 
 interface ControllerState {
-  count: number
+  count: number;
 }
 
 class CounterController extends ApplicationController<ControllerState> {
@@ -30,8 +30,8 @@ const Counter = () => {
 
   return (
     <div>
-      <h1>Counter example</h1>
-      <p>{count}</p>
+      <h1>Simple counter</h1>
+      <p className='count'>{count}</p>
       <p>
         <button onClick={() => controller.actionIncrement()}>+</button>
         <button onClick={() => controller.actionDecrement()}>-</button>

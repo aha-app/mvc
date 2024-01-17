@@ -4,24 +4,21 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import Counter from '../demo/counter';
 
-
 describe('counter example', () => {
+  it('renders and handles state changes', async () => {
+    const { container } = render(<Counter />);
 
-  it('renders', async () => {
+    expect(screen.getByRole('heading')).toHaveTextContent('Simple counter');
 
-    const {container}=  render(<Counter />);
+    const count = container.querySelector('.count');
 
-    expect(screen.getByRole('heading')).toHaveTextContent('Counter example');
-    expect(container.querySelector('.count')).toHaveTextContent('0');
+    expect(count).toHaveTextContent('0');
 
     await userEvent.click(screen.getByText('+'));
     await userEvent.click(screen.getByText('+'));
-    expect(container.querySelector('.count')).toHaveTextContent('2');
+    expect(count).toHaveTextContent('2');
 
     await userEvent.click(screen.getByText('-'));
-    expect(container.querySelector('.count')).toHaveTextContent('-');
-
-
+    expect(count).toHaveTextContent('1');
   });
-
-})
+});
