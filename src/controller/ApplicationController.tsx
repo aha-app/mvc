@@ -402,6 +402,7 @@ function Controller<Props = {}>({
  */
 const ControlledComponent: FC<{
   controller: ApplicationController<any, any, any>;
+  children?: ReactNode;
 }> = ({ children, controller }) => {
   return (
     <ControllerContext.Provider value={controller}>
