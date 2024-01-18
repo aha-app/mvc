@@ -52,7 +52,7 @@ class ApplicationController<
   id: string;
   initialized: boolean;
   parent: Parent;
-  state: State & { _tempObservable: any };
+  state: State;
   proxiedThis: any;
   _debug = Debug(`controller:${this.constructor.name}`);
 
@@ -196,8 +196,10 @@ class ApplicationController<
    *
    * @deprecated just use observable() directly, no need for _tempObservable.
    */
-  observable(obj: any) {
+  observable<T>(obj: T): T {
+    // @ts-ignore
     this.state._tempObservable = obj;
+    // @ts-ignore
     return this.state._tempObservable;
   }
 
