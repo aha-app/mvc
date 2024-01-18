@@ -14,7 +14,6 @@ build({
     '@aha-app/react-easy-state',
     '@nx-js/observer-util',
     'debug',
-    'caf',
     'lodash',
   ],
   target: 'es2018', // TODO: remove this when aha-app supports esnext.

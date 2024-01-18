@@ -10,7 +10,6 @@ import type { ComponentType, FC, ReactNode } from 'react';
 import { store } from '@aha-app/react-easy-state';
 import Debug from 'debug';
 import { randomId } from '../utils/randomId';
-import CAF from 'caf';
 import { cloneDeep } from 'lodash';
 
 const debug = Debug('framework:controller');
@@ -54,7 +53,6 @@ class ApplicationController<
   initialized: boolean;
   parent: Parent;
   state: State & { _tempObservable: any };
-  cancelTokens: Record<string, any>;
   proxiedThis: any;
   _debug = Debug(`controller:${this.constructor.name}`);
 
@@ -63,7 +61,6 @@ class ApplicationController<
     this.initialized = false;
     this.parent = null;
     this.state = undefined;
-    this.cancelTokens = {};
 
     this.proxiedThis = new Proxy(this, {
       // Traverse up through the controller hierarchy and find one that responds
@@ -202,58 +199,6 @@ class ApplicationController<
   observable(obj: any) {
     this.state._tempObservable = obj;
     return this.state._tempObservable;
-  }
-
-  /**
-   * Run an async function that can be canceled using
-   * `cancelPending`. When canceled, the async function will not run
-   * its `then` (or anything following the `await`).
-   *
-   * `scope` is an arbitrary string that can be used in
-   * `cancelPending` to cancel only pending functions of a certain
-   * type.
-   *
-   * For example:
-   *   await this.cancelable("loadFilters", async () => ...)
-   *   this.cancelPending("loadFilters")
-   */
-  cancelable(scope: string, fn: (signal: any) => Promise<any>) {
-    let token = this.cancelTokens[scope];
-    if (!token) {
-      token = this.cancelTokens[scope] = new CAF.cancelToken(); // eslint-disable-line new-cap
-    }
-
-    const cancelableFn = CAF(function* (signal) {
-      return yield fn(signal);
-    });
-
-    return cancelableFn(token.signal);
-  }
-
-  /**
-   * Cancel all running cancelable functions created using `scope`.
-   */
-  cancelPending(scope: string) {
-    if (this.cancelTokens[scope]) {
-      this.cancelTokens[scope].abort(
-        `Cancelled pending functions for ${this.constructor.name}/${scope}`
-      );
-    }
-    delete this.cancelTokens[scope];
-  }
-
-  /**
-   * Cancel all running cancelable functions.
-   */
-  cancelAllPending() {
-    Object.keys(this.cancelTokens).forEach(scope => this.cancelPending(scope));
-  }
-
-  /**
-   * Cleanup the cancelable state after the operation is complete.
-   */
-  finishPending(scope: string) {
-    delete this.cancelTokens[scope];
   }
 
   /**
