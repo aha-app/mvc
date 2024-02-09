@@ -47,7 +47,7 @@ type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
 class ApplicationController<
   State extends {} = {},
   Props extends {} = {},
-  Parent extends ApplicationController = any
+  Parent extends ApplicationController = any,
 > {
   id: string;
   initialized: boolean;
@@ -268,7 +268,7 @@ class ApplicationController<
  */
 function StartControllerScope<
   T extends ApplicationControllerConstructor<any>,
-  C extends ComponentType<any>
+  C extends ComponentType<any>,
 >(
   ControllerClass: T,
   ControlledComponent: C
@@ -349,6 +349,7 @@ function Controller<Props = {}>({
  */
 const ControlledComponent: FC<{
   controller: ApplicationController<any, any, any>;
+  children?: ReactNode;
 }> = ({ children, controller }) => {
   return (
     <ControllerContext.Provider value={controller}>
