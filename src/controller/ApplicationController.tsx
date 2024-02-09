@@ -48,7 +48,7 @@ type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
 class ApplicationController<
   State extends {} = {},
   Props extends {} = {},
-  Parent extends ApplicationController = any,
+  Parent extends ApplicationController<any, any, any> = any,
 > {
   id: string;
   initialized: boolean;
@@ -57,6 +57,8 @@ class ApplicationController<
   cancelTokens: Record<string, any>;
   proxiedThis: any;
   _debug = Debug(`controller:${this.constructor.name}`);
+
+  protected props: Props;
 
   constructor() {
     this.id = randomId();
@@ -133,9 +135,17 @@ class ApplicationController<
 
       // @ts-ignore
       this.state = store(cloneDeep(this.initialState));
+      // @ts-ignore
+      this.props = store(cloneDeep(initialArgs));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
     } else {
+      Object.keys(initialArgs).forEach(key => {
+        if (this.props[key] !== initialArgs[key]) {
+          this.props[key] = initialArgs[key];
+        }
+      });
+
       this.changeProps(initialArgs);
     }
   }
