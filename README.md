@@ -5,9 +5,9 @@
 This framework combines other libraries to provide a Model-View-Controller (MVC)
 architecture for code in the browser. The key libraries are:
 
-* Model - GraphQL
-* View - [React](https://reactjs.org/)
-* Controller - [React Easy State](https://github.com/RisingStack/react-easy-state)
+- Model - GraphQL
+- View - [React](https://reactjs.org/)
+- Controller - [React Easy State](https://github.com/RisingStack/react-easy-state)
 
 ## Example
 
@@ -16,6 +16,14 @@ See `./demo/counter.tsx` for a simple controller example. To run the demo in you
 ```
 yarn
 yarn demo
+```
+
+## Running the tests
+
+Tests use [jest](https://jestjs.io/) and [testing-library](https://testing-library.com/docs/react-testing-library/intro). To run them:
+
+```
+yarn test [--watch]
 ```
 
 ## Objectives
