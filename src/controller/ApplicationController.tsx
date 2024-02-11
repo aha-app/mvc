@@ -56,7 +56,7 @@ class ApplicationController<
   proxiedThis: any;
   _debug = Debug(`controller:${this.constructor.name}`);
 
-  protected props: Props;
+  protected props: Readonly<Props>;
 
   constructor() {
     this.id = randomId();
@@ -130,9 +130,7 @@ class ApplicationController<
         }`
       );
 
-      // @ts-ignore
       this.state = store(cloneDeep(this.initialState));
-      // @ts-ignore
       this.props = store(cloneDeep(initialArgs));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
