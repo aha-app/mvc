@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import type { ComponentType, FC, ReactNode } from 'react';
-// @ts-ignore
+// @ts-ignore TODO update module name in aha-app fork
 import { store } from '@aha-app/react-easy-state';
 import Debug from 'debug';
 import { randomId } from '../utils/randomId';
@@ -56,7 +56,7 @@ class ApplicationController<
   proxiedThis: any;
   _debug = Debug(`controller:${this.constructor.name}`);
 
-  protected props: Readonly<Props>;
+  public readonly props: Readonly<Props>;
 
   constructor() {
     this.id = randomId();
@@ -130,18 +130,21 @@ class ApplicationController<
         }`
       );
 
+      // @ts-ignore props are readonly, as we don't want them reassigned, but we need to set them here
+      this.props = store({ ...initialArgs });
+
       this.state = store(cloneDeep(this.initialState));
-      this.props = store(cloneDeep(initialArgs));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
     } else {
+      const oldProps = { ...this.props };
       Object.keys(initialArgs).forEach(key => {
         if (this.props[key] !== initialArgs[key]) {
           this.props[key] = initialArgs[key];
         }
       });
 
-      this.changeProps(initialArgs);
+      this.changeProps(initialArgs, oldProps);
     }
   }
 
@@ -216,7 +219,7 @@ class ApplicationController<
    *
    * @abstract
    */
-  changeProps(newProps: Props) {}
+  changeProps(newProps: Props, oldProps: Props) {}
 
   /**
    * Partially set state

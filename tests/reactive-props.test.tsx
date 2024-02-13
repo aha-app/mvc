@@ -82,4 +82,30 @@ describe('controller props', () => {
     expect(text).toHaveTextContent(/^Bonjour Bonjour$/);
     expect(renderCountText).toEqual(4);
   });
+
+  it('provides old props for comparison in changeProps method', async () => {
+    let oldProp, newProp;
+    class PropChangeController extends ApplicationController {
+      changeProps(newProps, oldProps): void {
+        oldProp = oldProps.prop;
+        newProp = newProps.prop;
+      }
+    }
+
+    const controller = new PropChangeController();
+    controller.internalInitialize(null, { prop: 1 });
+
+    expect(oldProp).toBe(undefined);
+    expect(newProp).toBe(undefined);
+
+    controller.internalInitialize(null, { prop: 2 });
+
+    expect(oldProp).toBe(1);
+    expect(newProp).toBe(2);
+
+    controller.internalInitialize(null, { prop: 3 });
+
+    expect(oldProp).toBe(2);
+    expect(newProp).toBe(3);
+  });
 });
