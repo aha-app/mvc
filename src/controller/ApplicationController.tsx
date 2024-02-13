@@ -247,8 +247,8 @@ class ApplicationController<
    *
    * @param args messages to log
    */
-  debug(...args: any[]) {
-    this._debug(...args);
+  debug(formatter: any, ...args: any[]) {
+    this._debug(formatter, ...args);
   }
 }
 
