@@ -11,6 +11,7 @@ import { store } from '@aha-app/react-easy-state';
 import Debug from 'debug';
 import { randomId } from '../utils/randomId';
 import { cloneDeep } from 'lodash';
+import { observe } from '..';
 
 const debug = Debug('framework:controller');
 
@@ -28,6 +29,8 @@ type GetControllerConstructor<T> = { new (): T };
 
 type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
   T extends ApplicationControllerConstructor<infer P> ? P : never;
+
+export type DependencyCallback = () => void | Promise<void>;
 
 /**
  * General rules to follow for using controllers:
@@ -170,6 +173,34 @@ class ApplicationController<
    */
   internalDestroy() {
     this.destroy();
+    this.deferredDestroyCallbacks.forEach(([_name, callback]) => callback());
+    this.deferredDestroyCallbacks = [];
+  }
+
+  private deferredDestroyCallbacks: [string, DependencyCallback][] = [];
+
+  resolveDependency(name: string) {
+    const callbacks = this.deferredDestroyCallbacks.filter(([n]) => n === name);
+    callbacks.forEach(([_, callback]) => callback());
+    this.deferredDestroyCallbacks = this.deferredDestroyCallbacks.filter(([n]) => n !== name);
+  }
+
+  addDependency(name: string, callback: DependencyCallback): void;
+  addDependency(callback: DependencyCallback): void;
+  addDependency(nameOrCallback: string | DependencyCallback, callback?: DependencyCallback) {
+    if (typeof nameOrCallback === "string") {
+      if (!callback) throw new Error("Callback is required");
+      this.deferredDestroyCallbacks.push([nameOrCallback, callback]);
+    } else if (typeof nameOrCallback === "function") {
+      this.deferredDestroyCallbacks.push(["unknown", nameOrCallback]);
+    } else {
+      throw new Error("Invalid arguments");
+    }
+  }
+
+  observe(callback: () => void, options: Parameters<typeof observe>[1] = {}) {
+    const observer = observe(callback, options);
+    this.addDependency(() => observer());
   }
 
   /**
