@@ -47,7 +47,7 @@ type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
 class ApplicationController<
   State extends {} = {},
   Props extends {} = {},
-  Parent extends ApplicationController = any,
+  Parent extends ApplicationController<any, any, any> = any,
 > {
   id: string;
   initialized: boolean;
@@ -55,6 +55,8 @@ class ApplicationController<
   state: State;
   proxiedThis: any;
   _debug = Debug(`controller:${this.constructor.name}`);
+
+  public readonly props: Readonly<Props>;
 
   constructor() {
     this.id = randomId();
@@ -128,12 +130,21 @@ class ApplicationController<
         }`
       );
 
-      // @ts-ignore
+      // @ts-ignore props are readonly, as we don't want them reassigned, but we need to set them here
+      this.props = store({ ...initialArgs });
+
       this.state = store(cloneDeep(this.initialState));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
     } else {
-      this.changeProps(initialArgs);
+      const oldProps = { ...this.props };
+      Object.keys(initialArgs).forEach(key => {
+        if (this.props[key] !== initialArgs[key]) {
+          this.props[key] = initialArgs[key];
+        }
+      });
+
+      this.changeProps(initialArgs, oldProps);
     }
   }
 
@@ -208,7 +219,7 @@ class ApplicationController<
    *
    * @abstract
    */
-  changeProps(newProps: Props) {}
+  changeProps(newProps: Props, oldProps: Props) {}
 
   /**
    * Partially set state
@@ -236,8 +247,8 @@ class ApplicationController<
    *
    * @param args messages to log
    */
-  debug(...args: any[]) {
-    this._debug(...args);
+  debug(formatter: any, ...args: any[]) {
+    this._debug(formatter, ...args);
   }
 }
 
