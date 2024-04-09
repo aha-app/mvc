@@ -1,6 +1,6 @@
 {
   "name": "@aha-app/mvc",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Simple MVC framework using React for the view and GraphQL for the models.",
   "main": "dist/index.js",
   "type": "module",
@@ -10,7 +10,9 @@
   ],
   "scripts": {
     "build": "rimraf dist && node config/build.js && tsc",
-    "prepare": "yarn build"
+    "prepare": "yarn build",
+    "test": "yarn jest",
+    "demo": "esbuild demo/index.tsx --bundle --serve --watch --outdir=demo/public --servedir=demo/public"
   },
   "repository": {
     "type": "git",
@@ -21,7 +23,6 @@
   "homepage": "https://github.com/aha-app/mvc#readme",
   "dependencies": {
     "@aha-app/react-easy-state": "^0.0.12-development",
-    "caf": "^9.0.0",
     "debug": "^4.1.0",
     "lodash": "^4.17.21 || npm:lodash-es@^4.17.21"
   },
@@ -30,11 +31,22 @@
     "react-dom": "^18.0.0"
   },
   "devDependencies": {
-    "@types/react": "^18.0.0",
-    "esbuild": "^0.12.22",
+    "@testing-library/jest-dom": "^6.2.0",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/debug": "^4.1.12",
+    "@types/jest": "^29.5.11",
+    "@types/lodash": "^4.14.202",
+    "@types/react": "^18.2.48",
+    "esbuild": "^0.19.11",
     "esbuild-plugin-d.ts": "^1.1.0",
-    "prettier": "^2.8.8",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "prettier": "^3.2.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "rimraf": "^5.0.0",
+    "ts-jest": "^29.1.1",
     "typescript": "^5.0.4"
   }
 }

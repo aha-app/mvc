@@ -1,5 +1,4 @@
 import { observable } from '@nx-js/observer-util';
-import CAF from 'caf';
 import Debug from 'debug';
 import { cloneDeep } from 'lodash';
 import type { FC, ReactNode } from 'react';
@@ -15,8 +14,8 @@ import React, {
 const debug = Debug('framework:controller');
 
 interface ApplicationController<
-  State = object,
-  Props = object,
+  State extends {} = {},
+  Props extends {} = {},
   Parent = UndefApp
 > {
   constructor: Function & {
@@ -73,22 +72,22 @@ export type ControllerState<
  *    functions.
  */
 class ApplicationController<
-  State extends object = object,
-  Props = object,
+  State extends {} = {},
+  Props extends {} = {},
   Parent = UndefApp
 > {
   initialized: boolean;
   parent: Parent;
-  state: State & { _tempObservable: any };
-  cancelTokens: Record<string, any>;
+  state: State;
   proxiedThis: any;
   _debug = Debug(`controller:${this.constructor.name}`);
+
+  public readonly props: Readonly<Props>;
 
   constructor(public id: string) {
     this.initialized = false;
     this.parent = null;
     this.state = undefined;
-    this.cancelTokens = {};
 
     this.proxiedThis = new Proxy(this, {
       // Traverse up through the controller hierarchy and find one that responds
@@ -148,12 +147,16 @@ class ApplicationController<
    *
    * @hidden
    */
-  async internalInitialize(
-    parentController: Parent,
-    initialArgs: Props
-  ): Promise<void> {
+  async internalInitialize(parentController: Parent, initialArgs: Props):Promise<void> {
     if (this.initialized) {
-      await this.changeProps(initialArgs);
+      const oldProps = { ...this.props };
+      Object.keys(initialArgs).forEach(key => {
+        if (this.props[key] !== initialArgs[key]) {
+          this.props[key] = initialArgs[key];
+        }
+      });
+
+      await this.changeProps(initialArgs, oldProps);
       return;
     }
 
@@ -165,6 +168,8 @@ class ApplicationController<
       }`
     );
 
+    // @ts-ignore
+    this.props = observable({ ...initialArgs });
     this.resetState();
 
     this.initialized = true;
@@ -234,61 +239,11 @@ class ApplicationController<
    *
    * @deprecated just use observable() directly, no need for _tempObservable.
    */
-  observable(obj: any) {
+  observable<T>(obj: T): T {
+    // @ts-ignore
     this.state._tempObservable = obj;
+    // @ts-ignore
     return this.state._tempObservable;
-  }
-
-  /**
-   * Run an async function that can be canceled using
-   * `cancelPending`. When canceled, the async function will not run
-   * its `then` (or anything following the `await`).
-   *
-   * `scope` is an arbitrary string that can be used in
-   * `cancelPending` to cancel only pending functions of a certain
-   * type.
-   *
-   * For example:
-   *   await this.cancelable("loadFilters", async () => ...)
-   *   this.cancelPending("loadFilters")
-   */
-  cancelable(scope: string, fn: (signal: any) => Promise<any>) {
-    let token = this.cancelTokens[scope];
-    if (!token) {
-      token = this.cancelTokens[scope] = new CAF.cancelToken(); // eslint-disable-line new-cap
-    }
-
-    const cancelableFn = CAF(function* (signal) {
-      return yield fn(signal);
-    });
-
-    return cancelableFn(token.signal);
-  }
-
-  /**
-   * Cancel all running cancelable functions created using `scope`.
-   */
-  cancelPending(scope: string) {
-    if (this.cancelTokens[scope]) {
-      this.cancelTokens[scope].abort(
-        `Cancelled pending functions for ${this.constructor.name}/${scope}`
-      );
-    }
-    delete this.cancelTokens[scope];
-  }
-
-  /**
-   * Cancel all running cancelable functions.
-   */
-  cancelAllPending() {
-    Object.keys(this.cancelTokens).forEach(scope => this.cancelPending(scope));
-  }
-
-  /**
-   * Cleanup the cancelable state after the operation is complete.
-   */
-  finishPending(scope: string) {
-    delete this.cancelTokens[scope];
   }
 
   /**
@@ -296,7 +251,7 @@ class ApplicationController<
    *
    * @abstract
    */
-  async changeProps(newProps: Props) {}
+  changeProps(newProps: Props, oldProps: Props) {}
 
   /**
    * Partially set state
@@ -324,8 +279,8 @@ class ApplicationController<
    *
    * @param args messages to log
    */
-  debug(...args: any[]) {
-    this._debug(...args);
+  debug(formatter: any, ...args: any[]) {
+    this._debug(formatter, ...args);
   }
 }
 
@@ -464,8 +419,8 @@ function Controller<
  * needs to live longer than its direct parent in the component hierarchy.
  */
 const ControlledComponent: FC<{
-  children: ReactNode;
-  controller: ApplicationController;
+  controller: ApplicationController<any, any, any>;
+  children?: ReactNode;
 }> = ({ children, controller }) => {
   return (
     <ControllerContext.Provider value={controller}>
