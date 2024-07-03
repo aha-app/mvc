@@ -11,6 +11,7 @@ import { store } from '@aha-app/react-easy-state';
 import Debug from 'debug';
 import { randomId } from '../utils/randomId';
 import { cloneDeep } from 'lodash';
+import { ApplicationView } from '..';
 
 const debug = Debug('framework:controller');
 
@@ -306,6 +307,13 @@ function StartControllerScope<
           'The controllerRef prop must be passed the value provided by useRef() or useCallback().'
         );
       }
+    }
+
+    let ControlledViewComponent = ControlledComponent;
+    // @ts-expect-error These are react-easy-state specific props to tell if the component is already memoized
+    if (ControlledViewComponent.type.name !== 'ReactiveComp') {
+      // Automatically make the controlled component a react-easy-state view.
+      ControlledViewComponent = ApplicationView(ControlledComponent);
     }
 
     return (
