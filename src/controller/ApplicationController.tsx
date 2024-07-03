@@ -311,7 +311,7 @@ function StartControllerScope<
 
     let ControlledViewComponent = ControlledComponent;
     // @ts-expect-error These are react-easy-state specific props to tell if the component is already memoized
-    if (ControlledViewComponent.type.name !== 'ReactiveComp') {
+    if (ControlledViewComponent.type?.name !== 'ReactiveComp') {
       // Automatically make the controlled component a react-easy-state view.
       ControlledViewComponent = ApplicationView(ControlledComponent);
     }
