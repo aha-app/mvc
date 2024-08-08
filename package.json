@@ -12,7 +12,8 @@
     "build": "rimraf dist && node config/build.js && tsc",
     "prepare": "yarn build",
     "test": "yarn jest",
-    "demo": "esbuild demo/index.tsx --bundle --serve --watch --outdir=demo/public --servedir=demo/public"
+    "demo": "esbuild demo/index.tsx --bundle --serve --watch --outdir=demo/public --servedir=demo/public",
+    "demo:production": "pnpm run demo --define:process.env.NODE_ENV=\\\"production\\\""
   },
   "repository": {
     "type": "git",
