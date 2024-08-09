@@ -18,6 +18,12 @@ yarn
 yarn demo
 ```
 
+To run with react in production mode
+
+```
+yarn demo:production
+```
+
 ## Running the tests
 
 Tests use [jest](https://jestjs.io/) and [testing-library](https://testing-library.com/docs/react-testing-library/intro). To run them:
