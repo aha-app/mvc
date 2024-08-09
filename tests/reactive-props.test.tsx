@@ -92,7 +92,7 @@ describe('controller props', () => {
       }
     }
 
-    const controller = new PropChangeController();
+    const controller = new PropChangeController("u1");
     controller.internalInitialize(null, { prop: 1 });
 
     expect(oldProp).toBe(undefined);
