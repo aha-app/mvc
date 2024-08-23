@@ -11,6 +11,7 @@ import { store } from '@aha-app/react-easy-state';
 import Debug from 'debug';
 import { randomId } from '../utils/randomId';
 import { cloneDeep } from 'lodash';
+import { observe, unobserve } from '..';
 
 const debug = Debug('framework:controller');
 
@@ -55,6 +56,7 @@ class ApplicationController<
   state: State;
   proxiedThis: any;
   _debug = Debug(`controller:${this.constructor.name}`);
+  runOnDestroy: Array<() => void>;
 
   public readonly props: Readonly<Props>;
 
@@ -63,6 +65,7 @@ class ApplicationController<
     this.initialized = false;
     this.parent = null;
     this.state = undefined;
+    this.runOnDestroy = [];
 
     this.proxiedThis = new Proxy(this, {
       // Traverse up through the controller hierarchy and find one that responds
@@ -170,6 +173,7 @@ class ApplicationController<
    */
   internalDestroy() {
     this.destroy();
+    this.runOnDestroy.forEach(fn => fn());
   }
 
   /**
@@ -212,6 +216,22 @@ class ApplicationController<
     this.state._tempObservable = obj;
     // @ts-ignore
     return this.state._tempObservable;
+  }
+
+  /**
+   * Observe a given function and run it whenever the observables it accesses
+   * change.
+   *
+   * This is a wrapper around observe that automatically cleans up when the
+   * controller is destroyed.
+   */
+  observe(
+    func: Parameters<typeof observe>[0],
+    options?: Parameters<typeof observe>[1]
+  ): ReturnType<typeof observe> {
+    const reaction = observe(func, options);
+    this.runOnDestroy.push(() => unobserve(reaction));
+    return reaction;
   }
 
   /**
