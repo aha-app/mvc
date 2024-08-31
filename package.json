@@ -25,7 +25,8 @@
   "dependencies": {
     "@aha-app/react-easy-state": "^0.0.12-development",
     "debug": "^4.1.0",
-    "lodash": "^4.17.21 || npm:lodash-es@^4.17.21"
+    "lodash": "^4.17.21 || npm:lodash-es@^4.17.21",
+    "valtio": "^2.0.0"
   },
   "peerDependencies": {
     "react": "^16.8.4",

@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ApplicationController,
-  ApplicationView,
   StartControllerScope,
   useController,
 } from '../src';
@@ -40,7 +39,4 @@ const Counter = () => {
   );
 };
 
-export default StartControllerScope(
-  CounterController,
-  ApplicationView(Counter)
-);
+export default StartControllerScope(CounterController, Counter);

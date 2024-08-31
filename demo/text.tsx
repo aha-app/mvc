@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ApplicationController,
-  ApplicationView,
   StartControllerScope,
   useController,
 } from '../src';
@@ -21,7 +20,7 @@ class TextController extends ApplicationController<ControllerState> {
   }
 }
 
-const TextInput = ApplicationView<{ id: string }>(({ id }) => {
+const TextInput = ({ id }) => {
   const controller = useController(TextController);
   const { values } = controller.state;
 
@@ -35,7 +34,7 @@ const TextInput = ApplicationView<{ id: string }>(({ id }) => {
       />
     </div>
   );
-});
+};
 
 const Text = () => {
   const fields = ['a', 'b'];
@@ -51,4 +50,4 @@ const Text = () => {
   );
 };
 
-export default StartControllerScope(TextController, ApplicationView(Text));
+export default StartControllerScope(TextController, Text);

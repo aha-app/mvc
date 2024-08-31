@@ -6,12 +6,10 @@ import React, {
   useState,
 } from 'react';
 import type { ComponentType, FC, ReactNode } from 'react';
-// @ts-ignore
-import { store } from '@aha-app/react-easy-state';
 import Debug from 'debug';
 import { randomId } from '../utils/randomId';
 import { cloneDeep } from 'lodash';
-import { observe, unobserve } from '..';
+import { proxy, subscribe, useSnapshot } from 'valtio';
 
 const debug = Debug('framework:controller');
 
@@ -134,9 +132,8 @@ class ApplicationController<
       );
 
       // @ts-ignore props are readonly, as we don't want them reassigned, but we need to set them here
-      this.props = store({ ...initialArgs });
-
-      this.state = store(cloneDeep(this.initialState));
+      this.props = proxy({ ...initialArgs });
+      this.state = proxy(cloneDeep(this.initialState));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
     } else {
@@ -225,13 +222,10 @@ class ApplicationController<
    * This is a wrapper around observe that automatically cleans up when the
    * controller is destroyed.
    */
-  observe(
-    func: Parameters<typeof observe>[0],
-    options?: Parameters<typeof observe>[1]
-  ): ReturnType<typeof observe> {
-    const reaction = observe(func, options);
-    this.runOnDestroy.push(() => unobserve(reaction));
-    return reaction;
+  observe(func: Parameters<typeof subscribe>[1]): () => void {
+    const unsubscribe = subscribe(this.state, func);
+    this.runOnDestroy.push(() => unsubscribe());
+    return unsubscribe;
   }
 
   /**
@@ -404,7 +398,17 @@ function useController<T extends ApplicationController>(
     controller = controller.findControllerInstance(controllerClass);
   }
 
-  const statefulController: T = controller;
+  const snapshot = useSnapshot(controller.state);
+  const statefulController: T = new Proxy(controller, {
+    get(target, prop, receiver) {
+      if (prop === 'state') {
+        return snapshot;
+      } else {
+        return Reflect.get(target, prop, receiver);
+      }
+    },
+  });
+
   return statefulController;
 }
 
