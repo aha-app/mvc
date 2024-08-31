@@ -4,10 +4,20 @@ import ApplicationController, {
   useController,
 } from '../src';
 
-interface Item {
+class Item {
   id: string;
   name: string;
   done: boolean;
+
+  constructor(name: string) {
+    this.id = String(Date.now());
+    this.name = name;
+    this.done = false;
+  }
+
+  markDone() {
+    this.done = true;
+  }
 }
 
 interface State {
@@ -20,7 +30,7 @@ class ListController extends ApplicationController<State> {
   }
 
   actionAdd(name: string) {
-    this.state.items.push({ id: String(Date.now()), name, done: false });
+    this.state.items.push(new Item(name));
   }
 
   actionRemove(id: string) {
@@ -33,7 +43,7 @@ class ListController extends ApplicationController<State> {
   actionToggle(id: string) {
     const item = this.state.items.find(item => item.id === id);
     if (item) {
-      item.done = !item.done;
+      item.markDone();
     }
   }
 
