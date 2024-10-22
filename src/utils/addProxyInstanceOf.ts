@@ -7,9 +7,9 @@ import { raw } from '@nx-js/observer-util';
 //
 // Remove this once https://github.com/nx-js/observer-util/issues/48
 // is fixed.
-export default function (constructor) {
+export default function (constructor: { new(): unknown }) {
   Object.defineProperty(constructor, Symbol.hasInstance, {
-    value: function (instance) {
+    value: function (instance: unknown) {
       if (!instance) return false;
       let rawInstance = raw(instance);
       let rawInstanceProto = raw(Object.getPrototypeOf(rawInstance));

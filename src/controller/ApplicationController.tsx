@@ -3,15 +3,16 @@ import React, {
   Ref,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import type { ComponentType, FC, ReactNode } from 'react';
 // @ts-ignore
-import { store } from '@aha-app/react-easy-state';
 import Debug from 'debug';
 import { randomId } from '../utils/randomId';
-import { cloneDeep } from 'lodash';
-import { observe, unobserve } from '..';
+import { observe, unobserve } from '@nx-js/observer-util';
+import { shallowEqual } from '../utils/shallowEqual';
+import { store } from '../store/Store';
 
 const debug = Debug('framework:controller');
 
@@ -41,9 +42,8 @@ type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
  * 3. The `state` object, and any content within it, must only be mutated
  *    inside an `action...` function.
  * 4. Action functions can be called from anywhere, including event handlers,
- *    callbacks, after `await`, render methods, and from within other action
- *    functions.
- *
+ *    callbacks, after `await`, and from within other action
+ *    functions. They should NOT be called from a component render.
  */
 class ApplicationController<
   State extends {} = {},
@@ -52,9 +52,8 @@ class ApplicationController<
 > {
   id: string;
   initialized: boolean;
-  parent: Parent;
-  state: State;
-  proxiedThis: any;
+  parent: Parent | null;
+  state: State | undefined;
   _debug = Debug(`controller:${this.constructor.name}`);
   runOnDestroy: Array<() => void>;
 
@@ -67,7 +66,7 @@ class ApplicationController<
     this.state = undefined;
     this.runOnDestroy = [];
 
-    this.proxiedThis = new Proxy(this, {
+    const proxiedThis = new Proxy(this, {
       // Traverse up through the controller hierarchy and find one that responds
       // to the specified action.
       get(targetController, prop, receiver) {
@@ -107,7 +106,7 @@ class ApplicationController<
       },
     });
 
-    return this.proxiedThis;
+    return proxiedThis;
   }
 
   /**
@@ -116,14 +115,14 @@ class ApplicationController<
    *
    * @abstract
    */
-  async initialize(props: Props): Promise<void> {}
+  initialize(props: Props): void | Promise<void> {}
 
   /**
    * Internal initializer function
    *
    * @hidden
    */
-  internalInitialize(parentController: Parent, initialArgs: Props) {
+  private internalInitialize(parentController: Parent, initialArgs: Props) {
     if (!this.initialized) {
       this.parent = parentController;
 
@@ -133,21 +132,21 @@ class ApplicationController<
         }`
       );
 
-      // @ts-ignore props are readonly, as we don't want them reassigned, but we need to set them here
-      this.props = store({ ...initialArgs });
+      // props are readonly, as we don't want them reassigned, but we need to set them here
+      (this.props as any) = store({ ...initialArgs });
 
-      this.state = store(cloneDeep(this.initialState));
+      this.state = store(structuredClone(this.initialState));
       if (this.initialize) this.initialize(initialArgs);
       this.initialized = true;
     } else {
-      const oldProps = { ...this.props };
-      Object.keys(initialArgs).forEach(key => {
-        if (this.props[key] !== initialArgs[key]) {
-          this.props[key] = initialArgs[key];
-        }
-      });
+      // const oldProps = { ...this.props };
+      // Object.keys(initialArgs).forEach(key => {
+      //   if (this.props[key] !== initialArgs[key]) {
+      //     this.props[key] = initialArgs[key];
+      //   }
+      // });
 
-      this.changeProps(initialArgs, oldProps);
+      // this.changeProps(initialArgs, oldProps);
     }
   }
 
@@ -169,9 +168,8 @@ class ApplicationController<
 
   /**
    * Internal destroy function. Do not override
-   * @private
    */
-  internalDestroy() {
+  private internalDestroy() {
     this.destroy();
     this.runOnDestroy.forEach(fn => fn());
   }
@@ -312,7 +310,7 @@ function StartControllerScope<
   // allocate a new controller instance.
   return React.memo((controllerInitialArgs: any) => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const [controller] = useState(new ControllerClass());
+    const [controller] = useState(() => new ControllerClass());
 
     if (controllerInitialArgs?.controllerRef) {
       if (typeof controllerInitialArgs.controllerRef === 'function') {
@@ -343,10 +341,10 @@ function StartControllerScope<
 export const ControllerContext = React.createContext(null);
 
 /**
- * A component that initializes a controller instance and wraps its
- * child with a context containing that instance.
+ * A component that initializes a controller instance, connects its lifecycle methods to React, and
+ * wraps its child with a context containing that instance.
  */
-function Controller<Props = {}>({
+function Controller<Props extends {} = {}>({
   children,
   controller,
   controllerInitialArgs,
@@ -357,10 +355,23 @@ function Controller<Props = {}>({
 }) {
   const parentController = useContext(ControllerContext);
 
+  // TODO: only initialize once, even with strict mode double renders
   controller.internalInitialize(parentController, controllerInitialArgs);
+
+  // inform the controller of a change in props. Should be done in an effect, a render may not be
+  // committed.
+  const prevPropsRef = useRef<Props>(controllerInitialArgs);
+  useEffect(() => {
+    const prevProps = prevPropsRef.current;
+    if (!shallowEqual(prevProps, controllerInitialArgs)) {
+      controller.changeProps(controllerInitialArgs, prevProps);
+    }
+    prevPropsRef.current = controllerInitialArgs;
+  }, [controllerInitialArgs]);
 
   // Give controller a chance to deregister when it is removed.
   useEffect(() => {
+    // TODO: Strict mode/concurrent features break this, must be symmetric
     return () => {
       debug('Destroying controller');
       controller.internalDestroy();

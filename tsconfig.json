@@ -8,8 +8,9 @@
     "skipLibCheck": true,
     "module": "AMD",
     "moduleResolution": "node",
-    "target": "ES2018",
-    "sourceMap": true
+    "target": "ESNext",
+    "sourceMap": true,
+    "strict": true
   },
   "include": ["src/**/*"]
 }

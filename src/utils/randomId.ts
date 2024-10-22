@@ -121,3 +121,20 @@ export const randomId = function () {
   }
   return convertBase(hex, 16, 10);
 };
+
+// TODO: replace with crypto + bigint approach from aha-app once I ensure `rand() * 2 ** randomBits`
+// is working as intended. Seems like we might want `Math.floor(rand() % (2 ** randomBits))` since
+// rand() is now generating 0-(2**32-1), not 0-1.
+
+// const rand = () => crypto.getRandomValues(new Uint32Array(1))[0];
+
+// // Generate a random ID that can be used in the database.
+// //
+// export const randomId = function () {
+//   const randomBits = 22;
+//   const time = new Date();
+//   const now = Math.floor((time.getTime() / 1000) * 1024);
+//   const entropy = Math.floor(rand() * 2 ** randomBits);
+
+//   return ((BigInt(now) << BigInt(randomBits)) | BigInt(entropy)).toString(10);
+// };
