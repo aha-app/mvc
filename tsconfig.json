@@ -6,11 +6,12 @@
     "emitDeclarationOnly": true,
     "declarationDir": "dist",
     "skipLibCheck": true,
-    "module": "AMD",
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "target": "ESNext",
     "sourceMap": true,
-    "strict": true
+    "strict": true,
+    "erasableSyntaxOnly": true
   },
   "include": ["src/**/*"]
 }
