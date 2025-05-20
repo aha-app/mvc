@@ -1,7 +1,7 @@
-import '@testing-library/jest-dom';
-import { act, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import React, { useState } from 'react';
+import { describe, it, expect } from 'vitest';
+
+import '@testing-library/jest-dom/vitest';
+import { act, render } from '@testing-library/react';
 import {
   ApplicationController,
   ApplicationView,
@@ -60,19 +60,29 @@ describe('observe', () => {
   it('stops running reactions once the controller is destroyed', async () => {
     renderCountText = 0;
 
-    let controller;
+    let controller: CounterController | null = null;
     const { container, unmount } = render(
-      <ControlledCounter controllerRef={c => (controller = c)} />
+      <ControlledCounter
+        controllerRef={c => {
+          if (c) {
+            controller = c;
+          }
+        }}
+      />
     );
     const count = container.querySelector('.count');
 
+    expect(controller).toBeTruthy();
     expect(count).toHaveTextContent('0');
-    await act(async () => controller.actionIncrement());
+
+    act(() => controller!.actionIncrement());
+
     expect(count).toHaveTextContent('1');
-    expect(controller.storedCounter).toBe(1);
+    expect(controller!.storedCounter).toBe(1);
+
     unmount();
-    console.log('unmounted');
-    await act(async () => controller.actionIncrement());
-    expect(controller.storedCounter).toBe(1);
+
+    act(() => controller!.actionIncrement());
+    expect(controller!.storedCounter).toBe(1);
   });
 });

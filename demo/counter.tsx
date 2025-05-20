@@ -33,8 +33,8 @@ const Counter = () => {
       <h1>Simple counter</h1>
       <p className='count'>{count}</p>
       <p>
-        <button onClick={() => controller.actionIncrement()}>+</button>
-        <button onClick={() => controller.actionDecrement()}>-</button>
+        <button type="button" onClick={() => controller.actionIncrement()}>+</button>
+        <button type="button" onClick={() => controller.actionDecrement()}>-</button>
       </p>
     </div>
   );
