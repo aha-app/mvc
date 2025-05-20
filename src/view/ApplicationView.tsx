@@ -1,26 +1,16 @@
-import * as React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { observe, unobserve } from '@nx-js/observer-util';
-
-const { useSyncExternalStore, useRef } = React;
-
-const isReact18 = useSyncExternalStore != null;
-
-const reactionRegistry = new FinalizationRegistry(
-  (viewStore: ViewStore<any>) => {
-    viewStore.dispose();
-  }
-);
+import useLifecycleBoundObject from '../utils/useLifecycleBoundObject';
 
 /**
  * Heavily adapted from https://github.com/mobxjs/mobx/blob/main/packages/mobx-react-lite/src/useObserver.ts
+ * Implements `subscribe` and `getSnapshot` for use with `useSyncExternalStore`.
  */
-class ViewStore<out Fn extends (...params: Array<any>) => any> {
-  dummy = 0;
-  subscriber: (() => void) | null = null;
-  // reaction: React.FC<Props> | null = null;
-  reaction: Fn | null = null;
-  // Component: React.FC<Props>;
-  fn: Fn;
+class ViewStore<Fn extends (...params: Array<any>) => any> {
+  private dummy = 0;
+  private subscriber: (() => void) | null = null;
+  private reaction: Fn | null = null;
+  private fn: Fn;
 
   constructor(fn: Fn) {
     this.fn = fn;
@@ -34,11 +24,11 @@ class ViewStore<out Fn extends (...params: Array<any>) => any> {
     return this.reaction;
   }
 
+  /**
+   * Wires up a `subscriber` function to be called any time part of a store accessed in `this.fn`
+   * has changed, and returns a cleanup function.
+   */
   subscribe = (subscriber: () => void): (() => void) => {
-    // matches 3rd arg in reactionRegistry.register() below. The FinalizationRegistry doesn't need
-    // to handle cleanup because we're tracking it now and will handle it in the cleanup function below.
-    reactionRegistry.unregister(this);
-
     this.subscriber = subscriber;
 
     if (this.reaction == null) {
@@ -54,19 +44,21 @@ class ViewStore<out Fn extends (...params: Array<any>) => any> {
     // If a store changes between the render and the subscription, React will check getSnapshot() and catch it.
 
     return () => {
-      // cleanup when no longer used
+      // cleanup when no longer used. Might already be disposed by `useLifecycleBoundObject`
+      this.subscriber = null;
       this.dispose();
     };
   };
 
-  // This is the value that useSyncExternalStore "sees"—we've wired it up to
-  // change anytime a store changes in a way that's relevant to this component.
-  // We're still really reading from a mutable store during render, but this
-  // disables time-slicing as needed.
+  /*
+   * This is the value that useSyncExternalStore "sees"—we've wired it up to change anytime a store
+   * changes in a way that's relevant to this component. We're still really reading from a mutable
+   * store during render, but this disables time-slicing as needed.
+   */
   getSnapshot = () => this.dummy;
 
+  // idempotent
   dispose() {
-    this.subscriber = null;
     if (this.reaction) {
       unobserve(this.reaction);
       this.reaction = null;
@@ -84,15 +76,9 @@ class ViewStore<out Fn extends (...params: Array<any>) => any> {
   }
 }
 
-type FCLike<Props> =
-  | React.FC<Props>
-  | React.ForwardRefRenderFunction<unknown, Props>;
-
-function isFunctionComponent<Props extends {}>(
-  Component: React.ComponentClass<Props> | FCLike<Props>
-): Component is FCLike<Props> {
-  return !(Component.prototype && Component.prototype.isReactComponent);
-}
+type FCLike<TProps, TRef = any> =
+  | React.FC<TProps>
+  | React.ForwardRefRenderFunction<TRef, TProps>;
 
 /**
  * All components that reference observable stores, either directly or through props, should be
@@ -100,86 +86,35 @@ function isFunctionComponent<Props extends {}>(
  *
  * Heavily adapted from https://github.com/mobxjs/mobx/blob/main/packages/mobx-react-lite/src/useObserver.ts
  */
-export default function View<Props extends {}, TRef>(
-  Component:
-    | React.ComponentClass<Props>
-    | FCLike<Props>
-): React.FunctionComponent<React.PropsWithRef<Props>> {
-  if (isFunctionComponent(Component)) {
-    const ReactiveComponent = React.forwardRef((props: Props, ref) => {
-      const viewStoreRef = useRef<ViewStore<typeof Component> | null>(null);
-      if (viewStoreRef.current == null) {
-        // ok to write ref during render since this is idempotent
-        viewStoreRef.current = new ViewStore(Component);
-        // renders can be abandoned & components can be remounted in StrictMode/Concurrent Mode, without any
-        // effects firing to tell us when a ViewStore is no longer being used. A FinalizationRegistry
-        // lets us _eventually_ catch when an old ref is disposed, and run some cleanup.
-        // 2nd arg is value passed to FinalizationRegistry callback, 3rd arg lets us unregister
-        reactionRegistry.register(
-          viewStoreRef,
-          viewStoreRef.current,
-          viewStoreRef.current
-        );
-      }
-      const viewStore = viewStoreRef.current;
+export default function View<TProps, TRef = unknown>(Component: FCLike<TProps, TRef>) {
+  // for `useLifecycleBoundObject`, stable identity
+  const disposeViewStore = (viewStore: ViewStore<any>) => viewStore.dispose();
+
+  // forwardRef() allows passing <View ref={...}> down to the wrapped component
+  const ReactiveComponent = React.forwardRef(
+    (props: React.PropsWithoutRef<TProps>, ref: React.ForwardedRef<TRef>) => {
+      // `viewStore` is created on the first render and cleaned up either after component unmounts
+      // or, if the render is abandoned, when resources are GC'd.
+      const viewStore = useLifecycleBoundObject(
+        () => new ViewStore(Component),
+        disposeViewStore
+      );
 
       // force component to rerender when relevant fields of store change
       const _dummy = useSyncExternalStore(
         viewStore.subscribe,
         viewStore.getSnapshot,
-        // MobX includes the server snapshot, we may not need it but doesn't hurt
+        // MobX includes the server-side rendering snapshot, we may not need it but doesn't hurt
         viewStore.getSnapshot
       );
 
-      // run the reactive render instead of the original one, idempotent
+      // run the reactive render instead of the original one. `getReaction` is idempotent, safe to
+      // call during render
       const render = viewStore.getReaction();
-      return render(props, ref);
-    });
-    ReactiveComponent.displayName = `View(${Component.displayName ?? Component.name ?? 'Component'})`;
-    // TODO: Fix or ignore this type error
-    return React.memo(ReactiveComponent);
-  }
-
-  // Same thing, except for class components, though we don't seem to be wrapping any class
-  // components in aha-app. Doesn't prevent tearing, since class components can't use
-  // `useSyncExternalStore`. The original plan was to render the class component under a function
-  // component similar to the above, only observing the class component's render method, but there's
-  // no way to reference the render method from the function component before rendering is complete.
-  // This is the best we can do.
-  // TODO: Actually, maybe we can pass a ref from the parent function component to the child class
-  // component and somehow use that to wire up the ViewStore with the class's `render()` method? Idk
-  // if that's possible.
-  class ReactiveClassComponent
-    extends Component
-    implements React.Component<Props>
-  {
-    private viewStore: ViewStore<() => React.ReactNode>;
-    private unsubscribe: (() => void) | null = null;
-
-    constructor(props: Props) {
-      super(props);
-      this.viewStore = new ViewStore(this.render.bind(this));
-
-      this.render = () => {
-        const render = this.viewStore.getReaction(); // late binding, reaction can be lost
-        return render();
-      };
-
-      reactionRegistry.register(this, this.viewStore, this.viewStore);
+      return render(props as TProps, ref); // harmless cast required for forwardRef
     }
-    componentDidMount(): void {
-      super.componentDidMount?.();
+  );
+  ReactiveComponent.displayName = `View(${Component.displayName ?? Component.name})`;
 
-      const unsubscribe = this.viewStore.subscribe(() => {
-        this.forceUpdate(); // bypasses shouldComponentUpdate
-      });
-      this.unsubscribe = unsubscribe;
-    }
-    componentWillUnmount(): void {
-      super.componentWillUnmount?.();
-      this.unsubscribe?.();
-      this.unsubscribe = null;
-    }
-  }
-  return ReactiveClassComponent;
+  return React.memo(ReactiveComponent);
 }
