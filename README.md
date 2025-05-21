@@ -7,7 +7,7 @@ architecture for code in the browser. The key libraries are:
 
 - Model - GraphQL
 - View - [React](https://reactjs.org/)
-- Controller - [React Easy State](https://github.com/RisingStack/react-easy-state)
+- Controller - [The Observer Utility](https://github.com/nx-js/observer-util), the underlying library powering [React Easy State](https://github.com/RisingStack/react-easy-state)
 
 ## Example
 
@@ -18,7 +18,7 @@ yarn
 yarn demo
 ```
 
-To run with react in production mode
+To run with React in production mode
 
 ```
 yarn demo:production
@@ -46,15 +46,15 @@ There should be one "right" way code pattern so that developers don't have to th
 
 #### Simple state management that just works
 
-Managing state for frameworks like Redux that require immutability for performance places a lot of burden on the developer. Updating immutable structures is more complex. State management should be simple, and not require any more knowledge or methods than vanilla Javascript. This is provided through the magic of [React Easy State](https://github.com/RisingStack/react-easy-state).
+Managing state for frameworks like Redux that require immutability for performance places a lot of burden on the developer. Updating immutable structures is more complex. State management should be simple, and not require any more knowledge or methods than vanilla Javascript. This is provided through the magic of [The Observer Utility](https://github.com/nx-js/observer-util).
 
 #### Explicit model classes
 
-Using plain old javascript objects to represent state models is error prone, and makes it hard to discover what methods can operate on which objects. Typescipt is only solution to this problem, but we believe that explicit model classes with object oriented encapsulation provides a more productive solution when the objective is to create functionality as efficiently as possible. Apollo GraphQL is included as the recommended way to achieve this, but is not strictly necessary and all of the controller benefits can be achieved with a different model implementation.
+Using plain old javascript objects to represent state models is error prone, and makes it hard to discover what methods can operate on which objects. Typescipt is one solution to this problem, but we believe that explicit model classes with object oriented encapsulation provides a more productive solution when the objective is to create functionality as efficiently as possible. Apollo GraphQL is included as the recommended way to achieve this, but is not strictly necessary and all of the controller benefits can be achieved with a different model implementation.
 
 #### Optimal React re-rendering without developer overhead
 
-Avoiding re-rendering is critical for good React performance. In most cases the developer should not need to write explicit memoization code, or use immutable state, to get this performance. In fact if the framework handles re-render automatically it is likely to give better performance than alternatives where the developer must do it explicitly. This is also provided automatically by React Easy State.
+Avoiding re-rendering is critical for good React performance. In most cases the developer should not need to write explicit memoization code, or use immutable state, to get this performance. In fact if the framework handles re-render automatically it is likely to give better performance than alternatives where the developer must do it explicitly. This is implemented similarly to [MobX](https://mobx.js.org/README.html), supporting React 18 and up.
 
 #### Proportionality
 

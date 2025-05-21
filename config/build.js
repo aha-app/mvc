@@ -1,10 +1,6 @@
 import { build } from 'esbuild';
 import { dtsPlugin } from 'esbuild-plugin-d.ts';
 
-// TODO: It might be easier to replace this with `tsdx`, which makes it easy to build both ESM and
-// CJS output with correct .d.ts files without worrying about externals. Using "exports" in
-// package.json helps tools find the right files they need.
-
 build({
   entryPoints: ['src/index.ts'],
   bundle: true,
