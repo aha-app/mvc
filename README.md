@@ -26,7 +26,7 @@ yarn demo:production
 
 ## Running the tests
 
-Tests use [vitest](https://vitest.dev) and [testing-library](https://testing-library.com/docs/react-testing-library/intro). To run them:
+Tests use [jest](https://jestjs.io/) and [testing-library](https://testing-library.com/docs/react-testing-library/intro). To run them:
 
 ```
 yarn test [--watch]

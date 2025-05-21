@@ -2,11 +2,11 @@ import React, { useContext, useEffect } from 'react';
 import type { FC, ReactNode } from 'react';
 import cloneDeep from 'lodash/cloneDeep';
 import Debug from 'debug';
-import { randomId } from '../utils/randomId';
 import { observe, raw, unobserve } from '@nx-js/observer-util';
-import { store } from '../store/Store';
-import useLifecycleBoundObject from '../utils/useLifecycleBoundObject';
-import useManualRef from '../utils/useManualRef';
+import { randomId } from '../utils/randomId.ts';
+import { store } from '../store/Store.ts';
+import useLifecycleBoundObject from '../utils/useLifecycleBoundObject.ts';
+import useManualRef from '../utils/useManualRef.ts';
 
 const debug = Debug('framework:controller');
 

@@ -1,7 +1,6 @@
-import { describe, it, expect } from 'vitest';
-
-import '@testing-library/jest-dom/vitest';
-import { act, render } from '@testing-library/react';
+import { act } from 'react';
+import '@testing-library/jest-dom';
+import { render } from '@testing-library/react';
 import {
   ApplicationController,
   ApplicationView,
@@ -28,7 +27,7 @@ class CounterController extends ApplicationController<State, Props> {
     this.state.count += 1;
   }
 
-  storedCounter: number;
+  storedCounter = 0;
   storeCounterState() {
     this.storedCounter = this.state.count;
   }
@@ -57,7 +56,7 @@ const ControlledCounter = StartControllerScope(
 );
 
 describe('observe', () => {
-  it('stops running reactions once the controller is destroyed', async () => {
+  it('stops running reactions once the controller is destroyed', () => {
     renderCountText = 0;
 
     let controller: CounterController | null = null;

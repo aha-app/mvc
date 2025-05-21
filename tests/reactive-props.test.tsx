@@ -1,15 +1,16 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+// polyfilling Jest env for '@testing-library/react-render-stream'
+import { TextEncoder, TextDecoder } from 'util';
+Object.assign(global, { TextEncoder, TextDecoder });
 
-import '@testing-library/jest-dom/vitest';
+import '@testing-library/jest-dom';
 // allows testing individual renders and DOM snapshots
 import {
   createRenderStream,
   useTrackRenders,
-  cleanup,
-} from '@testing-library/react-render-stream/pure';
+} from '@testing-library/react-render-stream';
 
 import userEvent from '@testing-library/user-event';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import {
   ApplicationController,
   ApplicationView,
@@ -17,10 +18,6 @@ import {
   StartControllerScope,
   useController,
 } from '../src/index.ts';
-
-// > Keep in mind that if you use the /pure import, you have to call the cleanup export manually
-// > after each test.
-afterEach(() => cleanup());
 
 it('update reactively without unneeded renders', async () => {
   interface Props {}
@@ -80,6 +77,7 @@ it('update reactively without unneeded renders', async () => {
     })
   );
 
+  const user = userEvent.setup();
   const { takeRender, render } = createRenderStream();
 
   // Initial render
@@ -94,8 +92,8 @@ it('update reactively without unneeded renders', async () => {
   expect(text).toHaveTextContent('Hello, World!');
 
   // Second render
-  await userEvent.click(input);
-  await userEvent.keyboard('!');
+  await user.click(input);
+  await user.keyboard('!');
   ({ renderedComponents, count } = await takeRender());
 
   expect(text).toHaveTextContent('Hello, World!!');
@@ -103,8 +101,8 @@ it('update reactively without unneeded renders', async () => {
   expect(renderedComponents).toEqual(['Text']); // look, no 'Input' or 'GreetingApp'!
 
   // Third render
-  await userEvent.keyboard('{Control>}a{/Control}');
-  await userEvent.paste('my ragtime gal');
+  await user.keyboard('{Control>}a{/Control}');
+  await user.paste('my ragtime gal');
   ({ renderedComponents, count } = await takeRender());
 
   expect(text).toHaveTextContent('Hello, my ragtime gal!');
@@ -112,9 +110,7 @@ it('update reactively without unneeded renders', async () => {
   expect(renderedComponents).toEqual(['Text']);
 });
 
-it('state is always consistent even with Suspense', async ({
-  onTestFinished,
-}) => {
+it('state is always consistent even with Suspense', async () => {
   class TearingController extends ApplicationController<{ color: string }> {
     get initialState() {
       return {
@@ -157,9 +153,8 @@ it('state is always consistent even with Suspense', async ({
 
   const controller = new TearingController();
   controller.internalInitialize(null, {});
-  onTestFinished(() => {
-    controller.internalDestroy();
-  });
+  // should usually call controller.internalDestroy() after test finishes, but this example requires
+  // no cleanup
 
   const ColorApp = ApplicationView(() => {
     useTrackRenders({ name: 'ColorApp' });

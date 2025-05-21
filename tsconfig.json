@@ -1,17 +1,17 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "declaration": true,
     "emitDeclarationOnly": true,
     "declarationDir": "dist",
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "target": "ESNext",
     "sourceMap": true,
-    "strict": true,
-    "erasableSyntaxOnly": true
+    "strict": true
   },
   "include": ["src/**/*"]
 }

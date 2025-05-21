@@ -1,6 +1,6 @@
 import React, { useSyncExternalStore } from 'react';
 import { observe, unobserve } from '@nx-js/observer-util';
-import useLifecycleBoundObject from '../utils/useLifecycleBoundObject';
+import useLifecycleBoundObject from '../utils/useLifecycleBoundObject.ts';
 
 /**
  * Heavily adapted from https://github.com/mobxjs/mobx/blob/main/packages/mobx-react-lite/src/useObserver.ts
@@ -76,7 +76,7 @@ class ViewStore<Fn extends (...params: Array<any>) => any> {
   }
 }
 
-type FCLike<TProps, TRef = any> =
+export type FCLike<TProps, TRef = any> =
   | React.FC<TProps>
   | React.ForwardRefRenderFunction<TRef, TProps>;
 

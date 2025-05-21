@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest';
-
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import '@testing-library/jest-dom/vitest';
+import '@testing-library/jest-dom';
 import Counter from '../demo/counter';
 
 describe('counter example', () => {
   it('renders and handles state changes', async () => {
+    const user = userEvent.setup();
+
     const { container } = render(<Counter />);
 
     expect(screen.getByRole('heading')).toHaveTextContent('Simple counter');
@@ -15,11 +15,11 @@ describe('counter example', () => {
 
     expect(count).toHaveTextContent('0');
 
-    await userEvent.click(screen.getByText('+'));
-    await userEvent.click(screen.getByText('+'));
+    await user.click(screen.getByText('+'));
+    await user.click(screen.getByText('+'));
     expect(count).toHaveTextContent('2');
 
-    await userEvent.click(screen.getByText('-'));
+    await user.click(screen.getByText('-'));
     expect(count).toHaveTextContent('1');
   });
 });
