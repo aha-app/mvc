@@ -13,6 +13,7 @@ build({
     'react-dom',
     '@nx-js/observer-util',
     'debug',
+    'lodash',
   ],
   target: 'es2018', // TODO: remove this when aha-app supports esnext.
   platform: 'browser',

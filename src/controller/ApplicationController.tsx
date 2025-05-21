@@ -1,6 +1,6 @@
-import React, { Ref, useContext, useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import type { FC, ReactNode } from 'react';
-// @ts-ignore
+import cloneDeep from 'lodash/cloneDeep';
 import Debug from 'debug';
 import { randomId } from '../utils/randomId';
 import { observe, raw, unobserve } from '@nx-js/observer-util';
@@ -53,7 +53,7 @@ class ApplicationController<
     this.id = randomId();
     this.initialized = false;
     this.parent = null;
-    this.state = store(structuredClone(this.initialState));
+    this.state = store(cloneDeep(this.initialState));
     this.runOnDestroy = [];
 
     const proxiedThis = new Proxy(this, {
