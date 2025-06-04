@@ -1,6 +1,6 @@
 {
   "name": "@aha-app/mvc",
-  "version": "0.14.0",
+  "version": "0.15.0-beta-20250604",
   "description": "Simple MVC framework using React for the view and GraphQL for the models.",
   "main": "dist/index.js",
   "type": "module",
