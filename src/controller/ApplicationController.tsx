@@ -288,7 +288,7 @@ class ApplicationController<
  * A reference to the controller can be retrieved from the component by
  * passing the `controllerRef` prop a value returned by `useRef()`.
  *
- * Example:
+ * @example
  *
  *   const whiteboardController = useRef();
  *   <Whiteboard controllerRef={whiteboardController} />
@@ -326,19 +326,25 @@ function StartControllerScope<
       useManualRef(controller, props.controllerRef, 'controllerRef');
 
       useEffect(() => {
-        // Update the controller's `this.props` (`internalInitialize` calls `changeProps` on updates) in an
-        // Effect, so the controller doesn't see prop changes from abandoned renders, only ones that
-        // were committed to DOM.
-        // After the first render, the controller's `this.props` are already set by `useLifecycleBoundObject`, but it doesn't do any harm
+        // Update the controller's `this.props` (`internalInitialize` calls `changeProps` on
+        // updates) in an Effect, so the controller doesn't see prop changes from abandoned renders,
+        // only ones that were committed to DOM. 
+        // Just after the first render, the controller's `this.props` are already set by
+        // `useLifecycleBoundObject`, but it doesn't do any harm. On prop updates, renders accessing
+        // `controller.props` directly will see older prop values, but then this effect will update
+        // the props proxy, triggering a rerender of any components accessing `controller.props`.
+        // That is, those components will temporarily exhibit tearing, but will eventually behave
+        // correctly. 
+        // It's more performant to pass down props from the component, or to use the
+        // `useControllerProps` hook which reads props from a separate context (concurrent-safe).
         controller.internalInitialize(parentController, props);
       }, [controller, parentController, props]);
 
       return (
-        <ControllerContext.Provider
-          value={controller}
-          key={controller.id}
-        >
-          <ControlledComponent {...props} />
+        <ControllerContext.Provider value={controller} key={controller.id}>
+          <ControllerPropsContext.Provider value={props}>
+            <ControlledComponent {...props} />
+          </ControllerPropsContext.Provider>
         </ControllerContext.Provider>
       );
     }
@@ -347,6 +353,11 @@ function StartControllerScope<
 
 export const ControllerContext =
   React.createContext<GenericApplicationController | null>(null);
+
+const ControllerPropsContext = React.createContext<Record<
+  string,
+  unknown
+> | null>(null);
 
 /**
  * Associate a controller with existing components. Useful if the same controller
@@ -364,8 +375,16 @@ const ControlledComponent: FC<{
 };
 
 /**
- * Returns the controller instance created by the closest
- * ControllerContext.
+ * Returns the controller instance created by the closest ControllerContext. If given a controller
+ * class, returns the closest controller instance of that class. Accesses to `controller.state`
+ * (and `controller.props`) are tracked and the component will rerender if an accessed property changes.
+ * **The current component must be wrapped in `View()`**—otherwise, the component will not rerender 
+ * when it should.
+ * 
+ * If you're using `controller.props` in a component and the props may change, consider passing down
+ * props directly or using `useControllerProps` instead.
+ * 
+ * @see useControllerProps
  */
 function useController(): GenericApplicationController;
 function useController<TController extends ApplicationController>(
@@ -396,9 +415,51 @@ function useController<
   );
 }
 
+/** 
+ * Accepts the type of a controller or controller constructor and returns the type of its `props` if
+ * possible.
+ */
+export type ControllerProps<TController> =
+  TController extends Constructor<ApplicationController<{}, infer TProps>>
+    ? TProps
+    : TController extends ApplicationController<{}, infer TProps>
+      ? TProps
+      : Record<string, unknown>;
+      
+/** 
+ * Get the current `props` of the controller component using context. 
+ * 
+ * In cases where the controller's props change, this is more efficient than accessing
+ * `controller.props` (i.e. fewer renders) and prevents 
+ * [tearing](https://github.com/reactwg/react-18/discussions/69).
+ * 
+ * Note that any changed prop will cause a rerender, not only props that are accessed in the
+ * current component. As such, it's even more efficient to simply pass down props manually.
+ * 
+ * This is a separate hook because of React's Concurrent features—components are pure and can
+ * safely "see" props from concurrent/abandoned renders, but the controller is stateful and 
+ * cannot. So `controller.props` is updated in an Effect only after a render has been committed.
+ * 
+ * It's untyped by default but can by typed by any of the following:
+ * 
+ * @example
+ * useControllerProps<typeof controller>()
+ * useControllerProps<typeof ControllerClass>()
+ * useControllerProps() as ControllerProps<typeof controller>
+ * useControllerProps() as ControllerProps<typeof ControllerClass>
+ */
+function useControllerProps<TController = unknown>() {
+  const props = useContext(ControllerPropsContext);
+  if (props == null) {
+    throw new Error(`No controller found`);
+  }
+  return props as ControllerProps<TController>;
+}
+
 export {
   ApplicationController,
   StartControllerScope,
   ControlledComponent,
   useController,
+  useControllerProps,
 };
