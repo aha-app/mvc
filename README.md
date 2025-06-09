@@ -64,4 +64,4 @@ The framework should be lightweight enough to be attractive to use for very simp
 
 ## Licensing
 
-mvc is [MIT licensed](./LICENSE) and is Copyright 2020-2023 Aha! Labs Inc.
+mvc is [MIT licensed](./LICENSE) and is Copyright 2020-2025 Aha! Labs Inc.
