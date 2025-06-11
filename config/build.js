@@ -11,7 +11,6 @@ build({
   external: [
     'react',
     'react-dom',
-    '@aha-app/react-easy-state',
     '@nx-js/observer-util',
     'debug',
     'lodash',

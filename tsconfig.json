@@ -1,15 +1,17 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "declaration": true,
     "emitDeclarationOnly": true,
     "declarationDir": "dist",
     "skipLibCheck": true,
-    "module": "AMD",
-    "moduleResolution": "node",
-    "target": "ES2018",
-    "sourceMap": true
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "target": "ESNext",
+    "sourceMap": true,
+    "strict": true
   },
   "include": ["src/**/*"]
 }

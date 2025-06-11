@@ -1,34 +1,24 @@
-import React, {
-  ComponentProps,
-  Ref,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
-import type { ComponentType, FC, ReactNode } from 'react';
-// @ts-ignore
-import { store } from '@aha-app/react-easy-state';
+import React, { useContext, useEffect } from 'react';
+import type { FC, ReactNode } from 'react';
+import cloneDeep from 'lodash/cloneDeep';
 import Debug from 'debug';
-import { randomId } from '../utils/randomId';
-import { cloneDeep } from 'lodash';
-import { observe, unobserve } from '..';
+import { observe, raw, unobserve } from '@nx-js/observer-util';
+import { randomId } from '../utils/randomId.ts';
+import { store } from '../store/Store.ts';
+import useLifecycleBoundObject from '../utils/useLifecycleBoundObject.ts';
+import useManualRef from '../utils/useManualRef.ts';
 
 const debug = Debug('framework:controller');
+
+interface Constructor<C> {
+  new (...args: any[]): C;
+}
+
+type Mutable<T extends object> = { -readonly [Key in keyof T]: T[Key] };
 
 class ControllerNoActionError extends Error {}
 
 export type GenericApplicationController = ApplicationController<any, any, any>;
-interface Constructor<C extends ApplicationController> {
-  new (...args: any[]): C;
-}
-
-type ApplicationControllerConstructor<P> = {
-  new (): { initialize(props: P): Promise<void> };
-};
-type GetControllerConstructor<T> = { new (): T };
-
-type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
-  T extends ApplicationControllerConstructor<infer P> ? P : never;
 
 /**
  * General rules to follow for using controllers:
@@ -41,30 +31,30 @@ type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
  * 3. The `state` object, and any content within it, must only be mutated
  *    inside an `action...` function.
  * 4. Action functions can be called from anywhere, including event handlers,
- *    callbacks, after `await`, render methods, and from within other action
- *    functions.
- *
+ *    callbacks, after `await`, and from within other action
+ *    functions. They should NOT be called from a component render.
  */
 class ApplicationController<
   State extends {} = {},
   Props extends {} = {},
-  Parent extends ApplicationController<any, any, any> = any,
+  Parent extends GenericApplicationController = any,
 > {
   id: string;
   initialized: boolean;
-  parent: Parent;
+  parent: Parent | null;
   state: State;
-  proxiedThis: any;
+  proxiedThis: this;
   _debug = Debug(`controller:${this.constructor.name}`);
   runOnDestroy: Array<() => void>;
 
+  // @ts-expect-error We will assign props before they're accessed in subclasses.
   public readonly props: Readonly<Props>;
 
   constructor() {
     this.id = randomId();
     this.initialized = false;
     this.parent = null;
-    this.state = undefined;
+    this.state = store(cloneDeep(this.initialState));
     this.runOnDestroy = [];
 
     this.proxiedThis = new Proxy(this, {
@@ -77,12 +67,10 @@ class ApplicationController<
             | Parent = targetController;
           let currentProxy = receiver;
           do {
-            if (prop in currentController) {
-              // We need to change this when the method is invoked, so rewrite
-              // the function.
-              return function (...args) {
-                return currentController[prop](...args);
-              };
+            const action = Reflect.get(currentController, prop, receiver);
+            if (typeof action === 'function') {
+              // We need to change this when the method is invoked, so bind the function.
+              return action.bind(currentController);
             }
             // Look further up the hierarchy.
             currentController = currentController.parent;
@@ -112,18 +100,19 @@ class ApplicationController<
 
   /**
    * Controllers can override this method to initialize at mount with the
-   * original props passed to the controller wrapped component.
+   * original props passed to the controller wrapped component. The constructor
+   * works too, it just doesn't have access to props.
    *
    * @abstract
    */
-  async initialize(props: Props): Promise<void> {}
+  initialize(props: Props): void | Promise<void> {}
 
   /**
    * Internal initializer function
    *
    * @hidden
    */
-  internalInitialize(parentController: Parent, initialArgs: Props) {
+  internalInitialize(parentController: Parent, props: Props) {
     if (!this.initialized) {
       this.parent = parentController;
 
@@ -133,21 +122,33 @@ class ApplicationController<
         }`
       );
 
-      // @ts-ignore props are readonly, as we don't want them reassigned, but we need to set them here
-      this.props = store({ ...initialArgs });
+      // props are readonly, as we don't want them reassigned, but we need to set them here
+      (this.props as Mutable<typeof this.props>) = store({ ...props });
 
-      this.state = store(cloneDeep(this.initialState));
-      if (this.initialize) this.initialize(initialArgs);
+      if (this.initialize) this.initialize(props);
       this.initialized = true;
     } else {
-      const oldProps = { ...this.props };
-      Object.keys(initialArgs).forEach(key => {
-        if (this.props[key] !== initialArgs[key]) {
-          this.props[key] = initialArgs[key];
-        }
-      });
+      const oldProps = { ...raw(this.props) };
 
-      this.changeProps(initialArgs, oldProps);
+      // Basically `Object.assign()`, but track if changes were made in the same pass.
+      let didChangeProps = false;
+      for (const key in props) {
+        if (Object.prototype.hasOwnProperty.call(props, key)) {
+          if (oldProps[key] !== props[key]) {
+            // props are readonly, as we don't want them reassigned, but we need to set them here
+            (this.props as Mutable<typeof this.props>)[key] = props[key];
+            didChangeProps = true;
+          }
+        }
+      }
+
+      // Note: this implementation doesn't remove from `this.props` any properties that `props` no
+      // longer has. A strict implementation would find the set difference between the keys of the
+      // two objects and delete properties from `this.props`.
+
+      if (didChangeProps) {
+        this.changeProps(props, oldProps);
+      }
     }
   }
 
@@ -169,7 +170,7 @@ class ApplicationController<
 
   /**
    * Internal destroy function. Do not override
-   * @private
+   * @hidden
    */
   internalDestroy() {
     this.destroy();
@@ -194,12 +195,12 @@ class ApplicationController<
     } while (controller);
   }
 
-  findControllerInstance<T extends ApplicationController>(
-    controllerClass: GetControllerConstructor<T>
-  ): T | undefined {
+  findControllerInstance<TController extends ApplicationController>(
+    controllerClass: Constructor<TController>
+  ) {
     return this.findController(
       _controller => _controller instanceof controllerClass
-    ) as T | undefined;
+    ) as TController | undefined;
   }
 
   /**
@@ -245,20 +246,18 @@ class ApplicationController<
    * Partially set state
    */
   setState(newState: Partial<State>) {
-    Object.keys(newState).forEach(key => {
-      this.state[key] = newState[key];
-    });
+    Object.assign(this.state, newState);
   }
 
   /**
    * Extends instances of this controller with the properties defined in
    * `mixin`. Will overwrite any existing properties of the same name.
    */
-  static extend(mixin) {
-    Object.keys(mixin).forEach(key => {
-      const descriptor = Object.getOwnPropertyDescriptor(mixin, key);
-      Object.defineProperty(this.prototype, key, descriptor);
-    });
+  static extend(mixin: object) {
+    Object.defineProperties(
+      this.prototype,
+      Object.getOwnPropertyDescriptors(mixin)
+    );
   }
 
   /**
@@ -284,13 +283,13 @@ class ApplicationController<
  * Example:
  *   export default StartControllerScope(WorkflowBoardController, WorkflowBoard);
  *
- * Inside a child component:
+ * Inside a child component wrapped in View():
  *   const controller = useController();
  *
  * A reference to the controller can be retrieved from the component by
  * passing the `controllerRef` prop a value returned by `useRef()`.
  *
- * Example:
+ * @example
  *
  *   const whiteboardController = useRef();
  *   <Whiteboard controllerRef={whiteboardController} />
@@ -298,81 +297,73 @@ class ApplicationController<
  *   whiteboardController.current.actionPanIntoView();
  */
 function StartControllerScope<
-  T extends ApplicationControllerConstructor<any>,
-  C extends ComponentType<any>,
+  TController extends ApplicationController<{}, {}, any>,
+  TProps extends {}
 >(
-  ControllerClass: T,
-  ControlledComponent: C
-): ComponentType<
-  GetControllerProps<T> & {
-    controllerRef?: Ref<InstanceType<T>>;
-  } & ComponentProps<C>
-> {
+  ControllerClass: Constructor<TController>,
+  ControlledComponent: React.FC<TProps>
+) {
+  // for `useLifecycleBoundObject`, stable identity
+  function disposeController(controller: TController) {
+    // Give controller a chance to deregister when it is removed.
+    debug('Destroying controller');
+    controller.internalDestroy();
+  }
+
   // Use React.memo here so if props don't change then we don't re-render and
   // allocate a new controller instance.
-  return React.memo((controllerInitialArgs: any) => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const [controller] = useState(new ControllerClass());
+  return React.memo(
+    (
+      props: TProps &
+        ControllerProps<TController> & {
+          controllerRef?: React.Ref<TController>;
+        }
+    ) => {
+      const parentController = useContext(ControllerContext);
 
-    if (controllerInitialArgs?.controllerRef) {
-      if (typeof controllerInitialArgs.controllerRef === 'function') {
-        controllerInitialArgs.controllerRef(controller);
-      } else if (
-        controllerInitialArgs.controllerRef.hasOwnProperty('current')
-      ) {
-        controllerInitialArgs.controllerRef.current = controller;
-      } else {
-        throw new Error(
-          'The controllerRef prop must be passed the value provided by useRef() or useCallback().'
-        );
-      }
+      const controller = useLifecycleBoundObject(() => {
+        // initialize controller
+        const controller = new ControllerClass();
+        controller.internalInitialize(parentController, props);
+        return controller;
+      }, disposeController);
+
+      // wires up ref up to controller if provided
+      useManualRef(controller, props.controllerRef, 'controllerRef');
+
+      useEffect(() => {
+        // Update the controller's `this.props` (`internalInitialize` calls `changeProps` on
+        // updates) in an Effect, so the controller doesn't see prop changes from abandoned renders,
+        // only ones that were committed to DOM.
+        // Just after the first render, the controller's `this.props` are already set by
+        // `useLifecycleBoundObject`, but it doesn't do any harm. On prop updates, renders accessing
+        // `controller.props` directly will see older prop values, but then this effect will update
+        // the props proxy, triggering a rerender of any components accessing `controller.props`.
+        // That is, those components will temporarily exhibit tearing, but will eventually behave
+        // correctly.
+        // It's more performant to pass down props from the component, or to use the
+        // `useControllerProps` hook which reads props from a separate context (concurrent-safe).
+        controller.internalInitialize(parentController, props);
+      }, [controller, parentController, props]);
+
+      return (
+        <ControllerContext.Provider value={controller} key={controller.id}>
+          <ControllerPropsContext.Provider value={props}>
+            <ControlledComponent {...props} />
+          </ControllerPropsContext.Provider>
+        </ControllerContext.Provider>
+      );
     }
-
-    return (
-      <Controller
-        controller={controller as any}
-        controllerInitialArgs={controllerInitialArgs}
-        key={(controller as any).id}
-      >
-        <ControlledComponent {...controllerInitialArgs} />
-      </Controller>
-    );
-  });
-}
-
-export const ControllerContext = React.createContext(null);
-
-/**
- * A component that initializes a controller instance and wraps its
- * child with a context containing that instance.
- */
-function Controller<Props = {}>({
-  children,
-  controller,
-  controllerInitialArgs,
-}: {
-  children: ReactNode;
-  controller: ApplicationController<any, Props, any>;
-  controllerInitialArgs: Props;
-}) {
-  const parentController = useContext(ControllerContext);
-
-  controller.internalInitialize(parentController, controllerInitialArgs);
-
-  // Give controller a chance to deregister when it is removed.
-  useEffect(() => {
-    return () => {
-      debug('Destroying controller');
-      controller.internalDestroy();
-    };
-  }, [controller]);
-
-  return (
-    <ControllerContext.Provider value={controller}>
-      {children}
-    </ControllerContext.Provider>
   );
 }
+
+export const ControllerContext =
+  React.createContext<GenericApplicationController | null>(null);
+
+const ControllerPropsContext = React.createContext<Record<
+  string,
+  unknown
+> | null>(null);
 
 /**
  * Associate a controller with existing components. Useful if the same controller
@@ -390,28 +381,91 @@ const ControlledComponent: FC<{
 };
 
 /**
- * Returns the controller instance created by the closest
- * ControllerContext.
+ * Returns the controller instance created by the closest ControllerContext. If given a controller
+ * class, returns the closest controller instance of that class. Accesses to `controller.state`
+ * (and `controller.props`) are tracked and the component will rerender if an accessed property changes.
+ * **The current component must be wrapped in `View()`**—otherwise, the component will not rerender
+ * when it should.
+ *
+ * If you're using `controller.props` in a component and the props may change, consider passing down
+ * props directly or using `useControllerProps` instead.
+ *
+ * @see useControllerProps
  */
-function useController<T extends ApplicationController>(
-  controllerClass: GetControllerConstructor<T> | undefined = undefined
-): T {
-  let controller = useContext(ControllerContext);
+function useController(): GenericApplicationController;
+function useController<TController extends ApplicationController>(
+  controllerClass: Constructor<TController>
+): TController;
+function useController<
+  TController extends ApplicationController = ApplicationController,
+>(
+  controllerClass?: Constructor<TController>
+): GenericApplicationController | TController {
+  let controller: GenericApplicationController | null | undefined =
+    useContext(ControllerContext);
 
-  // If a controller class constructor argument is given then traverse up the
-  // tree until the appropriate controller type is found
-  if (controllerClass) {
-    controller = controller.findControllerInstance(controllerClass);
+  if (controller) {
+    if (controllerClass) {
+      // If a controller class constructor argument is given then traverse up the
+      // tree until the appropriate controller type is found
+      const typedController =
+        controller.findControllerInstance(controllerClass);
+      if (typedController) return typedController;
+    } else {
+      return controller;
+    }
   }
 
-  const statefulController: T = controller;
-  return statefulController;
+  throw new Error(
+    `No controller${controllerClass ? ' of type ' + controllerClass.name : ''} found`
+  );
+}
+
+/**
+ * Accepts the type of a controller or controller constructor and returns the type of its `props` if
+ * possible.
+ */
+export type ControllerProps<TController> =
+  TController extends Constructor<ApplicationController<{}, infer TProps>>
+    ? TProps
+    : TController extends ApplicationController<{}, infer TProps>
+      ? TProps
+      : never;
+
+/**
+ * Get the current `props` of the controller component using context.
+ *
+ * In cases where the controller's props change, this is more efficient than accessing
+ * `controller.props` (i.e. fewer renders) and prevents
+ * [tearing](https://github.com/reactwg/react-18/discussions/69).
+ *
+ * Note that any changed prop will cause a rerender, not only props that are accessed in the
+ * current component. As such, it's even more efficient to simply pass down props manually.
+ *
+ * This is a separate hook because of React's Concurrent features—components are pure and can
+ * safely "see" props from concurrent/abandoned renders, but the controller is stateful and
+ * cannot. So `controller.props` is updated in an Effect only after a render has been committed.
+ *
+ * It's untyped by default but can by typed by any of the following:
+ *
+ * @example
+ * useControllerProps<typeof controller>()
+ * useControllerProps<typeof ControllerClass>()
+ * useControllerProps() as ControllerProps<typeof controller>
+ * useControllerProps() as ControllerProps<typeof ControllerClass>
+ */
+function useControllerProps<TController = unknown>() {
+  const props = useContext(ControllerPropsContext);
+  if (props == null) {
+    throw new Error(`No controller found`);
+  }
+  return props as ControllerProps<TController>;
 }
 
 export {
   ApplicationController,
   StartControllerScope,
-  Controller,
   ControlledComponent,
   useController,
+  useControllerProps,
 };

@@ -1,7 +1,6 @@
+import { act } from 'react';
 import '@testing-library/jest-dom';
-import { act, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import React, { useState } from 'react';
+import { render } from '@testing-library/react';
 import {
   ApplicationController,
   ApplicationView,
@@ -28,7 +27,7 @@ class CounterController extends ApplicationController<State, Props> {
     this.state.count += 1;
   }
 
-  storedCounter: number;
+  storedCounter = 0;
   storeCounterState() {
     this.storedCounter = this.state.count;
   }
@@ -57,22 +56,32 @@ const ControlledCounter = StartControllerScope(
 );
 
 describe('observe', () => {
-  it('stops running reactions once the controller is destroyed', async () => {
+  it('stops running reactions once the controller is destroyed', () => {
     renderCountText = 0;
 
-    let controller;
+    let controller: CounterController | null = null;
     const { container, unmount } = render(
-      <ControlledCounter controllerRef={c => (controller = c)} />
+      <ControlledCounter
+        controllerRef={c => {
+          if (c) {
+            controller = c;
+          }
+        }}
+      />
     );
     const count = container.querySelector('.count');
 
+    expect(controller).toBeTruthy();
     expect(count).toHaveTextContent('0');
-    await act(async () => controller.actionIncrement());
+
+    act(() => controller!.actionIncrement());
+
     expect(count).toHaveTextContent('1');
-    expect(controller.storedCounter).toBe(1);
+    expect(controller!.storedCounter).toBe(1);
+
     unmount();
-    console.log('unmounted');
-    await act(async () => controller.actionIncrement());
-    expect(controller.storedCounter).toBe(1);
+
+    act(() => controller!.actionIncrement());
+    expect(controller!.storedCounter).toBe(1);
   });
 });

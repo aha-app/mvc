@@ -6,11 +6,6 @@ export default {
   transform: {
     '^.+\\.tsx?$': [
       'ts-jest',
-      {
-        tsconfig: {
-          jsx: 'react',
-        },
-      },
     ],
   },
 };
