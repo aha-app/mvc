@@ -105,7 +105,7 @@ class ApplicationController<
    *
    * @abstract
    */
-  initialize(props: Props): void {}
+  initialize(props: Props): void | Promise<void> {}
 
   /**
    * Internal initializer function
