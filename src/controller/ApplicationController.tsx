@@ -31,7 +31,7 @@ type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
   T extends ApplicationControllerConstructor<infer P> ? P : never;
 
 type InitializationState = 'uninitialized' | 'initializing' | 'initialized';
-const InitializationStates: { [k: string]: InitializationStates } = {
+const InitializationStates: { [k: string]: InitializationState } = {
   INITIALIZING: 'initializing',
   UNINITIALIZED: 'uninitialized',
   INITIALIZED: 'initialized',
