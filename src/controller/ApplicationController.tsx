@@ -30,6 +30,13 @@ type GetControllerConstructor<T> = { new (): T };
 type GetControllerProps<T extends ApplicationControllerConstructor<any>> =
   T extends ApplicationControllerConstructor<infer P> ? P : never;
 
+type InitializationState = 'uninitialized' | 'initializing' | 'initialized';
+const InitializationStates: { [k: string]: InitializationStates } = {
+  INITIALIZING: 'initializing',
+  UNINITIALIZED: 'uninitialized',
+  INITIALIZED: 'initialized',
+} as const;
+
 /**
  * General rules to follow for using controllers:
  *
@@ -51,7 +58,7 @@ class ApplicationController<
   Parent extends ApplicationController<any, any, any> = any,
 > {
   id: string;
-  initialized: boolean;
+  initializationState: InitializationState;
   parent: Parent;
   state: State;
   proxiedThis: any;
@@ -62,7 +69,7 @@ class ApplicationController<
 
   constructor() {
     this.id = randomId();
-    this.initialized = false;
+    this.initializationState = InitializationStates.UNINITIALIZED;
     this.parent = null;
     this.state = undefined;
     this.runOnDestroy = [];
@@ -124,7 +131,8 @@ class ApplicationController<
    * @hidden
    */
   internalInitialize(parentController: Parent, initialArgs: Props) {
-    if (!this.initialized) {
+    if (this.initializationState === InitializationStates.UNINITIALIZED) {
+      this.initializationState = InitializationStates.INITIALIZING;
       this.parent = parentController;
 
       debug(
@@ -138,8 +146,8 @@ class ApplicationController<
 
       this.state = store(cloneDeep(this.initialState));
       if (this.initialize) this.initialize(initialArgs);
-      this.initialized = true;
-    } else {
+      this.initializationState = InitializationStates.INITIALIZED;
+    } else if (this.initializationState === InitializationStates.INITIALIZED) {
       const oldProps = { ...this.props };
       Object.keys(initialArgs).forEach(key => {
         if (this.props[key] !== initialArgs[key]) {
@@ -148,7 +156,15 @@ class ApplicationController<
       });
 
       this.changeProps(initialArgs, oldProps);
+    } else {
+      throw new Error(
+        'Attempted to reinitialize controller before initialization finished.'
+      );
     }
+  }
+
+  get initialized() {
+    return this.initializationState === InitializationStates.INITIALIZED;
   }
 
   /**
