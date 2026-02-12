@@ -7,13 +7,6 @@
   resolved "https://registry.yarnpkg.com/@adobe/css-tools/-/css-tools-4.3.2.tgz#a6abc715fb6884851fca9dad37fc34739a04fd11"
   integrity sha512-DA5a1C0gD/pLOvhv33YMrbf2FK3oUzwNl9oOJqE4XVjuEtt6XIakRcsd7eLiOSPkp1kTRQGICTA8cKra/vFbjw==
 
-"@aha-app/react-easy-state@^0.0.12-development":
-  version "0.0.12-development"
-  resolved "https://registry.yarnpkg.com/@aha-app/react-easy-state/-/react-easy-state-0.0.12-development.tgz#a4c2b19cfb3a52a83622e2a1fff1f88fedb40c2f"
-  integrity sha512-V18+9yvg4QmgJfhFsDk9VrzSSXlyKlzNOiYAZtMmatPFcRCVbwuL2mWknvBhweEoto7Hq+ONwxpHEuX3beQYpQ==
-  dependencies:
-    "@nx-js/observer-util" "^4.3.0-alpha.2"
-
 "@ampproject/remapping@^2.2.0":
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/@ampproject/remapping/-/remapping-2.2.1.tgz#99e8e11851128b8702cd57c33684f1d0f260b630"
@@ -701,10 +694,10 @@
     "@jridgewell/resolve-uri" "3.1.0"
     "@jridgewell/sourcemap-codec" "1.4.14"
 
-"@nx-js/observer-util@^4.3.0-alpha.2":
-  version "4.3.0-alpha.2"
-  resolved "https://registry.yarnpkg.com/@nx-js/observer-util/-/observer-util-4.3.0-alpha.2.tgz#0eaf0029860e19f26ac9721b1f53eb6fc91ebdda"
-  integrity sha512-15oX1btB2VAKHXEDJWLr4+DlmFhPTP2OHXIwjIgWhBhsZg8XjuyO1obqp/vOEHcia7HARJ2cNRyYZTDpOIsgZQ==
+"@nx-js/observer-util@^4.2.2":
+  version "4.2.2"
+  resolved "https://registry.yarnpkg.com/@nx-js/observer-util/-/observer-util-4.2.2.tgz#faea1bc61936653486d1b5dec7485220991e628d"
+  integrity sha512-9OayX1xkdGjdnsDiO2YdaYJ6aMyCF7/NY4QWVgIgjSAZJ4OX2fD766Ts79hEzBscenQy2DCaSoY8VkguIMB1ZA==
 
 "@pkgjs/parseargs@^0.11.0":
   version "0.11.0"

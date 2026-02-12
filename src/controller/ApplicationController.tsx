@@ -6,12 +6,11 @@ import React, {
   useState,
 } from 'react';
 import type { ComponentType, FC, ReactNode } from 'react';
-// @ts-ignore
-import { store } from '@aha-app/react-easy-state';
+import { store } from '../reactivity/view';
 import Debug from 'debug';
 import { randomId } from '../utils/randomId';
 import { cloneDeep } from 'lodash';
-import { observe, unobserve } from '..';
+import { observe, unobserve } from '@nx-js/observer-util';
 
 const debug = Debug('framework:controller');
 
