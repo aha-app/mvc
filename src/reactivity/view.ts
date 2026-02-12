@@ -50,6 +50,15 @@ let taskPending = false;
 let viewIndexCounter = 0;
 let inEventLoop = false;
 
+// Cursor position preservation - only tracked during input events
+interface CursorState {
+  element: HTMLInputElement | HTMLTextAreaElement;
+  start: number | null;
+  end: number | null;
+  direction: 'forward' | 'backward' | 'none' | null;
+}
+let pendingCursorRestore: CursorState | null = null;
+
 function runBatch() {
   const batchesToRun = batchesPending;
   taskPending = false;
@@ -129,14 +138,50 @@ if (globalObj?.EventTarget) {
     (fn: any, ctx: any, args: any[]) => {
       inEventLoop = true;
 
+      // Save cursor position for input/change events on text inputs
+      const event = args[0];
+      const eventType = event?.type;
+      if (eventType === 'input' || eventType === 'change') {
+        const target = event.target;
+        const tagName = target?.tagName;
+        if (tagName === 'INPUT' || tagName === 'TEXTAREA') {
+          const inputType = tagName === 'INPUT' ? target.type : 'textarea';
+          if (
+            inputType === 'text' ||
+            inputType === 'search' ||
+            inputType === 'url' ||
+            inputType === 'tel' ||
+            inputType === 'password' ||
+            inputType === 'textarea'
+          ) {
+            pendingCursorRestore = {
+              element: target,
+              start: target.selectionStart,
+              end: target.selectionEnd,
+              direction: target.selectionDirection,
+            };
+          }
+        }
+      }
+
       try {
         fn.apply(ctx, args);
 
         if (taskPending) {
           runBatch();
+
+          // Restore cursor position after React updates
+          if (pendingCursorRestore) {
+            const { element, start, end, direction } = pendingCursorRestore;
+            if (document.activeElement === element && start !== null) {
+              element.setSelectionRange(start, end, direction || undefined);
+            }
+            pendingCursorRestore = null;
+          }
         }
       } finally {
         inEventLoop = false;
+        pendingCursorRestore = null;
       }
     }
   );
