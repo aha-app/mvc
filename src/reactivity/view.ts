@@ -3,7 +3,7 @@
  * Original source: https://github.com/RisingStack/react-easy-state
  */
 
-import { useState, memo, useMemo, useEffect, Component } from 'react';
+import { useState, memo, useMemo, useEffect, useLayoutEffect, useRef, Component } from 'react';
 import { unstable_batchedUpdates } from 'react-dom';
 import { observe, unobserve, isObservable, raw, observable } from '@nx-js/observer-util';
 
@@ -65,7 +65,56 @@ function batchSetState(viewIndex: number, fn: () => void) {
 
 function clearBatch(viewIndex: number) {
   delete batchesPending[viewIndex];
-} // this creates and returns a wrapped version of the passed function
+}
+
+// Cursor position preservation for controlled inputs
+interface CursorPosition {
+  element: HTMLInputElement | HTMLTextAreaElement;
+  start: number | null;
+  end: number | null;
+  direction: 'forward' | 'backward' | 'none' | null;
+}
+
+function saveCursorPosition(): CursorPosition | null {
+  if (typeof document === 'undefined') return null;
+  const activeElement = document.activeElement;
+  if (
+    activeElement &&
+    (activeElement instanceof HTMLInputElement ||
+      activeElement instanceof HTMLTextAreaElement)
+  ) {
+    const type = activeElement instanceof HTMLInputElement ? activeElement.type : 'textarea';
+    if (['text', 'search', 'url', 'tel', 'password', 'textarea'].includes(type)) {
+      return {
+        element: activeElement,
+        start: activeElement.selectionStart,
+        end: activeElement.selectionEnd,
+        direction: activeElement.selectionDirection,
+      };
+    }
+  }
+  return null;
+}
+
+function restoreCursorPosition(saved: CursorPosition | null) {
+  if (
+    saved &&
+    document.activeElement === saved.element &&
+    saved.start !== null
+  ) {
+    try {
+      saved.element.setSelectionRange(
+        saved.start,
+        saved.end,
+        saved.direction || undefined
+      );
+    } catch {
+      // Some input types don't support setSelectionRange
+    }
+  }
+}
+
+// this creates and returns a wrapped version of the passed function
 // the cache is necessary to always map the same thing to the same function
 // which makes sure that addEventListener/removeEventListener pairs don't break
 
@@ -139,10 +188,19 @@ export function view(Comp: any) {
       const [, setState] = useState<object>(); // create a memoized reactive wrapper of the original component (render)
       // at the very first run of the component function
 
+      // Ref to store cursor position before re-render
+      const cursorRef = useRef<CursorPosition | null>(null);
+
       const render = useMemo(() => observe(Comp, {
-        scheduler: () => batchSetState(viewIndex, () => {
-          setState({});
-        }),
+        scheduler: () => {
+          // Save cursor position IMMEDIATELY when observable triggers,
+          // before any batching delays. This captures the cursor position
+          // right after the user's input event, before React re-renders.
+          cursorRef.current = saveCursorPosition();
+          batchSetState(viewIndex, () => {
+            setState({});
+          });
+        },
         lazy: true
       }), // Adding the original Comp here is necessary to make React Hot Reload work
       // it does not affect behavior otherwise
@@ -154,7 +212,15 @@ export function view(Comp: any) {
           clearBatch(viewIndex);
           unobserve(render);
         };
-      }, []); // the isInsideFunctionComponent flag is used to toggle `store` behavior
+      }, []);
+
+      // Restore cursor position after DOM updates
+      useLayoutEffect(() => {
+        restoreCursorPosition(cursorRef.current);
+        cursorRef.current = null;
+      });
+
+      // the isInsideFunctionComponent flag is used to toggle `store` behavior
       // based on where it was called from
 
       isInsideFunctionComponent = true;
@@ -172,6 +238,7 @@ export function view(Comp: any) {
 
     class ReactiveClassComp extends BaseComp {
       viewIndex: number;
+      cursorPosition: CursorPosition | null = null;
 
       constructor(props: any, context: any) {
         super(props, context); // Unique ID for each class insance.
@@ -182,9 +249,21 @@ export function view(Comp: any) {
         this.state[COMPONENT] = this; // create a reactive render for the component
 
         this.render = observe(this.render, {
-          scheduler: () => batchSetState(this.viewIndex, () => this.setState({})),
+          scheduler: () => {
+            // Save cursor position IMMEDIATELY when observable triggers
+            this.cursorPosition = saveCursorPosition();
+            batchSetState(this.viewIndex, () => this.setState({}));
+          },
           lazy: true
         });
+      }
+
+      componentDidUpdate() {
+        restoreCursorPosition(this.cursorPosition);
+        this.cursorPosition = null;
+        if (super.componentDidUpdate) {
+          super.componentDidUpdate();
+        }
       }
 
       render() {
