@@ -13,7 +13,9 @@
     "prepare": "yarn build",
     "test": "yarn jest",
     "demo": "esbuild demo/index.tsx --bundle --serve --watch --outdir=demo/public --servedir=demo/public",
-    "demo:production": "pnpm run demo --define:process.env.NODE_ENV=\\\"production\\\""
+    "demo:production": "pnpm run demo --define:process.env.NODE_ENV=\\\"production\\\"",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "repository": {
     "type": "git",
@@ -32,6 +34,7 @@
     "react-dom": "^16.8.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.2",
