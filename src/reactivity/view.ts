@@ -5,7 +5,13 @@
 
 import { useState, memo, useMemo, useEffect, Component } from 'react';
 import { unstable_batchedUpdates } from 'react-dom';
-import { observe, unobserve, isObservable, raw, observable } from '@nx-js/observer-util';
+import {
+  observe,
+  unobserve,
+  isObservable,
+  raw,
+  observable,
+} from '@nx-js/observer-util';
 
 // it is window in the DOM and global in NodeJS and React Native
 
@@ -27,7 +33,10 @@ function mapStateToStores(state: any) {
   // to do not trigger none static this.setState calls
   // from the static getDerivedStateFromProps lifecycle method
   const component = state[COMPONENT];
-  return Object.keys(component).map(key => component[key]).filter(isObservable).map(raw);
+  return Object.keys(component)
+    .map(key => component[key])
+    .filter(isObservable)
+    .map(raw);
 } // We batch all updates to the view until the end of the current task. This
 // is to prevent excessive rendering in situations where updates can occur
 // outside of React's built-in batching. e.g. after resolving a promise,
@@ -35,7 +44,6 @@ function mapStateToStores(state: any) {
 //
 // NOTE: This should be revisited after React improves batching for
 // Suspense / etc.
-
 
 let batchesPending: Record<number, () => void> = {};
 let taskPending = false;
@@ -46,7 +54,9 @@ function runBatch() {
   const batchesToRun = batchesPending;
   taskPending = false;
   batchesPending = {};
-  unstable_batchedUpdates(() => Object.values(batchesToRun).forEach(setStateFn => setStateFn()));
+  unstable_batchedUpdates(() =>
+    Object.values(batchesToRun).forEach(setStateFn => setStateFn())
+  );
 }
 
 function batchSetState(viewIndex: number, fn: () => void) {
@@ -62,13 +72,11 @@ function batchSetState(viewIndex: number, fn: () => void) {
   }
 } // No need to trigger an update for this view since it has been removed.
 
-
 function clearBatch(viewIndex: number) {
   delete batchesPending[viewIndex];
 } // this creates and returns a wrapped version of the passed function
 // the cache is necessary to always map the same thing to the same function
 // which makes sure that addEventListener/removeEventListener pairs don't break
-
 
 const cache = new WeakMap();
 
@@ -93,36 +101,45 @@ function wrapFn(fn: any, wrapper: any) {
 function wrapMethodCallbacks(obj: any, method: string, wrapper: any) {
   const descriptor = Object.getOwnPropertyDescriptor(obj, method);
 
-  if (descriptor && descriptor.writable && typeof descriptor.value === 'function') {
+  if (
+    descriptor &&
+    descriptor.writable &&
+    typeof descriptor.value === 'function'
+  ) {
     obj[method] = new Proxy(descriptor.value, {
       apply(target, ctx, args) {
-        return Reflect.apply(target, ctx, args.map((f: any) => wrapFn(f, wrapper)));
-      }
-
+        return Reflect.apply(
+          target,
+          ctx,
+          args.map((f: any) => wrapFn(f, wrapper))
+        );
+      },
     });
   }
 } // wrapped obj.addEventListener(cb) like callbacks
-
 
 function wrapMethodsCallbacks(obj: any, methods: string[], wrapper: any) {
   methods.forEach(method => wrapMethodCallbacks(obj, method, wrapper));
 } // batch addEventListener calls
 
-
 if (globalObj?.EventTarget) {
-  wrapMethodsCallbacks(EventTarget.prototype, ['addEventListener', 'removeEventListener'], (fn: any, ctx: any, args: any[]) => {
-    inEventLoop = true;
+  wrapMethodsCallbacks(
+    EventTarget.prototype,
+    ['addEventListener', 'removeEventListener'],
+    (fn: any, ctx: any, args: any[]) => {
+      inEventLoop = true;
 
-    try {
-      fn.apply(ctx, args);
+      try {
+        fn.apply(ctx, args);
 
-      if (taskPending) {
-        runBatch();
+        if (taskPending) {
+          runBatch();
+        }
+      } finally {
+        inEventLoop = false;
       }
-    } finally {
-      inEventLoop = false;
     }
-  });
+  );
 }
 
 export function view(Comp: any) {
@@ -139,14 +156,18 @@ export function view(Comp: any) {
       const [, setState] = useState<object>(); // create a memoized reactive wrapper of the original component (render)
       // at the very first run of the component function
 
-      const render = useMemo(() => observe(Comp, {
-        scheduler: () => batchSetState(viewIndex, () => {
-          setState({});
-        }),
-        lazy: true
-      }), // Adding the original Comp here is necessary to make React Hot Reload work
-      // it does not affect behavior otherwise
-      [Comp]); // cleanup the reactive connections after the very last render of the component
+      const render = useMemo(
+        () =>
+          observe(Comp, {
+            scheduler: () =>
+              batchSetState(viewIndex, () => {
+                setState({});
+              }),
+            lazy: true,
+          }), // Adding the original Comp here is necessary to make React Hot Reload work
+        // it does not affect behavior otherwise
+        [Comp]
+      ); // cleanup the reactive connections after the very last render of the component
 
       useEffect(() => {
         return () => {
@@ -182,8 +203,9 @@ export function view(Comp: any) {
         this.state[COMPONENT] = this; // create a reactive render for the component
 
         this.render = observe(this.render, {
-          scheduler: () => batchSetState(this.viewIndex, () => this.setState({})),
-          lazy: true
+          scheduler: () =>
+            batchSetState(this.viewIndex, () => this.setState({})),
+          lazy: true,
         });
       }
 
@@ -192,35 +214,33 @@ export function view(Comp: any) {
         isInsideFunctionComponentWithoutHooks = isStatelessComp;
 
         try {
-          return isStatelessComp ? Comp(this.props, this.context) : super.render();
+          return isStatelessComp
+            ? Comp(this.props, this.context)
+            : super.render();
         } finally {
           isInsideClassComponentRender = false;
           isInsideFunctionComponentWithoutHooks = false;
         }
       } // react should trigger updates on prop changes, while easyState handles store changes
 
-
       shouldComponentUpdate(nextProps: any, nextState: any) {
-        const {
-          props,
-          state
-        } = this; // respect the case when the user defines a shouldComponentUpdate
+        const { props, state } = this; // respect the case when the user defines a shouldComponentUpdate
 
         if (super.shouldComponentUpdate) {
           return super.shouldComponentUpdate(nextProps, nextState);
         } // return true if it is a reactive render or state changes
 
-
         if (state !== nextState) {
           return true;
         } // the component should update if any of its props shallowly changed value
 
-
         const keys = Object.keys(props);
         const nextKeys = Object.keys(nextProps);
-        return nextKeys.length !== keys.length || nextKeys.some(key => props[key] !== nextProps[key]);
+        return (
+          nextKeys.length !== keys.length ||
+          nextKeys.some(key => props[key] !== nextProps[key])
+        );
       } // add a custom deriveStoresFromProps lifecyle method
-
 
       static getDerivedStateFromProps(props: any, state: any) {
         if ((BaseComp as any).deriveStoresFromProps) {
@@ -228,7 +248,6 @@ export function view(Comp: any) {
           const stores = mapStateToStores(state);
           (BaseComp as any).deriveStoresFromProps(props, ...stores);
         } // respect user defined getDerivedStateFromProps
-
 
         if ((BaseComp as any).getDerivedStateFromProps) {
           return (BaseComp as any).getDerivedStateFromProps(props, state);
@@ -243,12 +262,10 @@ export function view(Comp: any) {
           super.componentWillUnmount();
         } // We don't need to trigger a render.
 
-
         clearBatch(this.viewIndex); // clean up memory used by Easy State
 
         unobserve(this.render);
       }
-
     }
 
     ReactiveComp = ReactiveClassComp;
@@ -271,9 +288,11 @@ function ownKeys(object: any, enumerableOnly?: boolean) {
 
   if (Object.getOwnPropertySymbols) {
     var symbols: any = Object.getOwnPropertySymbols(object);
-    enumerableOnly && (symbols = symbols.filter(function (sym: any) {
-      return Object.getOwnPropertyDescriptor(object, sym)!.enumerable;
-    })), keys.push.apply(keys, symbols);
+    enumerableOnly &&
+      (symbols = symbols.filter(function (sym: any) {
+        return Object.getOwnPropertyDescriptor(object, sym)!.enumerable;
+      })),
+      keys.push.apply(keys, symbols);
   }
 
   return keys;
@@ -282,11 +301,22 @@ function ownKeys(object: any, enumerableOnly?: boolean) {
 function _objectSpread2(target: any, ...sources: any[]) {
   for (var i = 0; i < sources.length; i++) {
     var source = null != sources[i] ? sources[i] : {};
-    i % 2 ? ownKeys(Object(source), true).forEach(function (key) {
-      _defineProperty(target, key, source[key]);
-    }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) {
-      Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)!);
-    });
+    i % 2
+      ? ownKeys(Object(source), true).forEach(function (key) {
+          _defineProperty(target, key, source[key]);
+        })
+      : Object.getOwnPropertyDescriptors
+        ? Object.defineProperties(
+            target,
+            Object.getOwnPropertyDescriptors(source)
+          )
+        : ownKeys(Object(source)).forEach(function (key) {
+            Object.defineProperty(
+              target,
+              key,
+              Object.getOwnPropertyDescriptor(source, key)!
+            );
+          });
   }
 
   return target;
@@ -298,7 +328,7 @@ function _defineProperty(obj: any, key: string | symbol, value: any) {
       value: value,
       enumerable: true,
       configurable: true,
-      writable: true
+      writable: true,
     });
   } else {
     obj[key] = value;
@@ -330,8 +360,7 @@ const scheduler = {
 
   off() {
     scheduler.isOn = false;
-  }
-
+  },
 };
 
 // until the function is finished running
@@ -369,8 +398,7 @@ function batchFn(fn: any) {
     batched = new Proxy(fn, {
       apply(target, thisArg, args) {
         return batch(target, thisArg, args);
-      }
-
+      },
     });
     cache2.set(fn, batched);
   }
@@ -385,22 +413,20 @@ function batchMethod(obj: any, method: string) {
     return;
   }
 
-  const {
-    value,
-    writable,
-    set,
-    configurable
-  } = descriptor;
+  const { value, writable, set, configurable } = descriptor;
 
   if (configurable && typeof set === 'function') {
-    Object.defineProperty(obj, method, _objectSpread2({}, descriptor, {
-      set: batchFn(set)
-    }));
+    Object.defineProperty(
+      obj,
+      method,
+      _objectSpread2({}, descriptor, {
+        set: batchFn(set),
+      })
+    );
   } else if (writable && typeof value === 'function') {
     obj[method] = batchFn(value);
   }
 } // batches obj.onevent = fn like calls and store methods
-
 
 function batchMethods(obj: any, methods?: string[]) {
   methods = methods || Object.getOwnPropertyNames(obj);
@@ -409,7 +435,9 @@ function batchMethods(obj: any, methods?: string[]) {
 }
 
 function createStore<T extends object>(obj: T | (() => T)): T {
-  return batchMethods(observable(typeof obj === 'function' ? (obj as () => T)() : obj));
+  return batchMethods(
+    observable(typeof obj === 'function' ? (obj as () => T)() : obj)
+  );
 }
 
 export function store<T extends object>(obj: T | (() => T)): T {
@@ -424,11 +452,15 @@ export function store<T extends object>(obj: T | (() => T)): T {
   }
 
   if (isInsideFunctionComponentWithoutHooks) {
-    throw new Error('You cannot use state inside a function component with a pre-hooks version of React. Please update your React version to at least v16.8.0 to use this feature.');
+    throw new Error(
+      'You cannot use state inside a function component with a pre-hooks version of React. Please update your React version to at least v16.8.0 to use this feature.'
+    );
   }
 
   if (isInsideClassComponentRender) {
-    throw new Error('You cannot use state inside a render of a class component. Please create your store outside of the render function.');
+    throw new Error(
+      'You cannot use state inside a render of a class component. Please create your store outside of the render function.'
+    );
   }
 
   return createStore(obj);
@@ -438,22 +470,26 @@ export function autoEffect(fn: () => void, deps: any[] = []) {
   if (isInsideFunctionComponent) {
     return useEffect(() => {
       const observer = observe(fn, {
-        scheduler: () => scheduler.add(observer)
+        scheduler: () => scheduler.add(observer),
       });
       return () => unobserve(observer);
     }, deps);
   }
 
   if (isInsideFunctionComponentWithoutHooks) {
-    throw new Error('You cannot use autoEffect inside a function component with a pre-hooks version of React. Please update your React version to at least v16.8.0 to use this feature.');
+    throw new Error(
+      'You cannot use autoEffect inside a function component with a pre-hooks version of React. Please update your React version to at least v16.8.0 to use this feature.'
+    );
   }
 
   if (isInsideClassComponentRender) {
-    throw new Error('You cannot use autoEffect inside a render of a class component. Please use it in the constructor or lifecycle methods instead.');
+    throw new Error(
+      'You cannot use autoEffect inside a render of a class component. Please use it in the constructor or lifecycle methods instead.'
+    );
   }
 
   const observer = observe(fn, {
-    scheduler: () => scheduler.add(observer)
+    scheduler: () => scheduler.add(observer),
   });
   return observer;
 }
