@@ -60,66 +60,6 @@ export default StartControllerScope(
 );
 ```
 
-### Typed Props
-
-Props passed to the wrapped component are forwarded to the controller. Use the second type parameter to define their shape. Props are available as `this.props` and are reactive — when a parent re-renders with new prop values, `changeProps` is called.
-
-```tsx
-interface ListState {
-  items: string[];
-  loading: boolean;
-}
-
-interface ListProps {
-  projectId: string;
-}
-
-class ListController extends ApplicationController<ListState, ListProps> {
-  get initialState() {
-    return { items: [], loading: false };
-  }
-
-  async initialize(props: ListProps) {
-    await this.actionLoad(props.projectId);
-  }
-
-  changeProps(newProps: ListProps, oldProps: ListProps) {
-    if (newProps.projectId !== oldProps.projectId) {
-      this.actionLoad(newProps.projectId);
-    }
-  }
-
-  async actionLoad(projectId: string) {
-    this.state.loading = true;
-    const response = await fetch(`/api/projects/${projectId}/items`);
-    this.state.items = await response.json();
-    this.state.loading = false;
-  }
-}
-
-const ItemList = () => {
-  const controller = useController(ListController);
-  const { items, loading } = controller.state;
-
-  if (loading) return <p>Loading...</p>;
-
-  return (
-    <ul>
-      {items.map((item, i) => (
-        <li key={i}>{item}</li>
-      ))}
-    </ul>
-  );
-};
-
-export default StartControllerScope(
-  ListController,
-  ApplicationView(ItemList)
-);
-
-// Usage: <ItemList projectId="abc-123" />
-```
-
 ### Lifecycle & Async
 
 Use `initialize` for setup and `destroy` for cleanup. Both are called automatically when the component mounts and unmounts.
