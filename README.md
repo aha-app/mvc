@@ -9,16 +9,377 @@ architecture for code in the browser. The key libraries are:
 - View - [React](https://reactjs.org/)
 - Controller - [React Easy State](https://github.com/RisingStack/react-easy-state)
 
-## Example
+## Examples
 
-See `./demo/counter.tsx` for a simple controller example. To run the demo in your browser:
+### Basic Counter
+
+The simplest MVC pattern: a controller owns the state, action methods mutate it, and the view re-renders automatically.
+
+```tsx
+import {
+  ApplicationController,
+  ApplicationView,
+  StartControllerScope,
+  useController,
+} from '@aha-app/mvc';
+
+interface CounterState {
+  count: number;
+}
+
+class CounterController extends ApplicationController<CounterState> {
+  get initialState() {
+    return { count: 0 };
+  }
+
+  actionIncrement() {
+    this.state.count += 1;
+  }
+
+  actionDecrement() {
+    this.state.count -= 1;
+  }
+}
+
+const Counter = () => {
+  const controller = useController(CounterController);
+  const { count } = controller.state;
+
+  return (
+    <div>
+      <p>{count}</p>
+      <button onClick={() => controller.actionIncrement()}>+</button>
+      <button onClick={() => controller.actionDecrement()}>-</button>
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  CounterController,
+  ApplicationView(Counter)
+);
+```
+
+### Typed Props
+
+Props passed to the wrapped component are forwarded to the controller. Use the second type parameter to define their shape. Props are available as `this.props` and are reactive — when a parent re-renders with new prop values, `changeProps` is called.
+
+```tsx
+interface ListState {
+  items: string[];
+  loading: boolean;
+}
+
+interface ListProps {
+  projectId: string;
+}
+
+class ListController extends ApplicationController<ListState, ListProps> {
+  get initialState() {
+    return { items: [], loading: false };
+  }
+
+  async initialize(props: ListProps) {
+    await this.actionLoad(props.projectId);
+  }
+
+  changeProps(newProps: ListProps, oldProps: ListProps) {
+    if (newProps.projectId !== oldProps.projectId) {
+      this.actionLoad(newProps.projectId);
+    }
+  }
+
+  async actionLoad(projectId: string) {
+    this.state.loading = true;
+    const response = await fetch(`/api/projects/${projectId}/items`);
+    this.state.items = await response.json();
+    this.state.loading = false;
+  }
+}
+
+const ItemList = () => {
+  const controller = useController(ListController);
+  const { items, loading } = controller.state;
+
+  if (loading) return <p>Loading...</p>;
+
+  return (
+    <ul>
+      {items.map((item, i) => (
+        <li key={i}>{item}</li>
+      ))}
+    </ul>
+  );
+};
+
+export default StartControllerScope(
+  ListController,
+  ApplicationView(ItemList)
+);
+
+// Usage: <ItemList projectId="abc-123" />
+```
+
+### Lifecycle & Async
+
+Use `initialize` for setup and `destroy` for cleanup. Both are called automatically when the component mounts and unmounts.
+
+```tsx
+interface TimerState {
+  elapsed: number;
+}
+
+class TimerController extends ApplicationController<TimerState> {
+  private intervalId: ReturnType<typeof setInterval>;
+
+  get initialState() {
+    return { elapsed: 0 };
+  }
+
+  async initialize() {
+    this.intervalId = setInterval(() => {
+      this.actionTick();
+    }, 1000);
+  }
+
+  destroy() {
+    clearInterval(this.intervalId);
+  }
+
+  actionTick() {
+    this.state.elapsed += 1;
+  }
+
+  actionReset() {
+    this.state.elapsed = 0;
+  }
+}
+
+const Timer = () => {
+  const controller = useController(TimerController);
+
+  return (
+    <div>
+      <p>{controller.state.elapsed}s</p>
+      <button onClick={() => controller.actionReset()}>Reset</button>
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  TimerController,
+  ApplicationView(Timer)
+);
+```
+
+### Nested Components
+
+Scope the controller once at the top of the tree. Any descendant wrapped in `ApplicationView` can access the same controller instance with `useController` and will re-render only when the state it reads changes.
+
+```tsx
+interface FormState {
+  values: Record<string, string>;
+}
+
+class FormController extends ApplicationController<FormState> {
+  get initialState() {
+    return { values: {} };
+  }
+
+  actionUpdate(field: string, value: string) {
+    this.state.values[field] = value;
+  }
+}
+
+const FormField = ApplicationView<{ name: string }>(({ name }) => {
+  const controller = useController(FormController);
+
+  return (
+    <input
+      value={controller.state.values[name] || ''}
+      onChange={(e) => controller.actionUpdate(name, e.target.value)}
+      placeholder={name}
+    />
+  );
+});
+
+const FormSummary = ApplicationView(() => {
+  const controller = useController(FormController);
+  const { values } = controller.state;
+
+  return (
+    <pre>{JSON.stringify(values, null, 2)}</pre>
+  );
+});
+
+const Form = () => {
+  return (
+    <div>
+      <FormField name="firstName" />
+      <FormField name="lastName" />
+      <FormSummary />
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  FormController,
+  ApplicationView(Form)
+);
+```
+
+### Parent-Child Controllers
+
+When a child controller is nested inside a parent's component tree, action calls automatically resolve up the hierarchy. A child can also find its parent with `findControllerInstance`.
+
+```tsx
+interface AppState {
+  notifications: string[];
+}
+
+class AppController extends ApplicationController<AppState> {
+  get initialState() {
+    return { notifications: [] };
+  }
+
+  actionNotify(message: string) {
+    this.state.notifications.push(message);
+  }
+}
+
+interface EditorState {
+  content: string;
+}
+
+class EditorController extends ApplicationController<EditorState, {}, AppController> {
+  get initialState() {
+    return { content: '' };
+  }
+
+  actionUpdateContent(content: string) {
+    this.state.content = content;
+  }
+
+  actionSave() {
+    const app = this.findControllerInstance(AppController);
+    app.actionNotify('Document saved');
+  }
+}
+
+const Notifications = ApplicationView(() => {
+  const controller = useController(AppController);
+
+  return (
+    <ul>
+      {controller.state.notifications.map((msg, i) => (
+        <li key={i}>{msg}</li>
+      ))}
+    </ul>
+  );
+});
+
+const Editor = () => {
+  const controller = useController(EditorController);
+
+  return (
+    <div>
+      <textarea
+        value={controller.state.content}
+        onChange={(e) => controller.actionUpdateContent(e.target.value)}
+      />
+      <button onClick={() => controller.actionSave()}>Save</button>
+    </div>
+  );
+};
+
+const EditorPanel = StartControllerScope(
+  EditorController,
+  ApplicationView(Editor)
+);
+
+const App = () => {
+  return (
+    <div>
+      <Notifications />
+      <EditorPanel />
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  AppController,
+  ApplicationView(App)
+);
+```
+
+### Observing State Changes
+
+Use `this.observe()` to run side effects whenever observed state changes. Reactions set up this way are automatically cleaned up when the controller is destroyed.
+
+```tsx
+interface SearchState {
+  query: string;
+  results: string[];
+}
+
+class SearchController extends ApplicationController<SearchState> {
+  get initialState() {
+    return { query: '', results: [] };
+  }
+
+  async initialize() {
+    this.observe(() => {
+      const query = this.state.query;
+      if (query.length >= 2) {
+        this.actionSearch(query);
+      }
+    });
+  }
+
+  actionSetQuery(query: string) {
+    this.state.query = query;
+  }
+
+  async actionSearch(query: string) {
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    this.state.results = await response.json();
+  }
+}
+
+const Search = () => {
+  const controller = useController(SearchController);
+  const { query, results } = controller.state;
+
+  return (
+    <div>
+      <input
+        value={query}
+        onChange={(e) => controller.actionSetQuery(e.target.value)}
+        placeholder="Search..."
+      />
+      <ul>
+        {results.map((result, i) => (
+          <li key={i}>{result}</li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  SearchController,
+  ApplicationView(Search)
+);
+```
+
+## Running the demo
 
 ```
 yarn
 yarn demo
 ```
 
-To run with react in production mode
+To run with React in production mode:
 
 ```
 yarn demo:production
