@@ -170,7 +170,7 @@ export default StartControllerScope(
 
 ### Parent-Child Controllers
 
-When a child controller is nested inside a parent's component tree, action calls automatically resolve up the hierarchy. A child can also find its parent with `findControllerInstance`.
+When controllers are nested, a child can find its parent with `findControllerInstance` to call methods on it directly.
 
 ```tsx
 interface AppState {
