@@ -5,7 +5,7 @@
 This framework combines other libraries to provide a Model-View-Controller (MVC)
 architecture for code in the browser. The key libraries are:
 
-- Model - GraphQL
+- Model - Any JavaScript plain object or class instance
 - View - [React](https://reactjs.org/)
 - Controller - [React Easy State](https://github.com/RisingStack/react-easy-state)
 
