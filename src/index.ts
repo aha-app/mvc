@@ -4,8 +4,7 @@ import {
   ControlledComponent,
   useController,
 } from './controller/ApplicationController';
-// @ts-ignore
-import { view } from '@aha-app/react-easy-state';
+import { view } from './reactivity/view';
 import { raw, observable, observe, unobserve } from '@nx-js/observer-util';
 import { randomId } from './utils/randomId';
 import type { ComponentType } from 'react';
