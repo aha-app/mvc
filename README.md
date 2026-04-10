@@ -5,20 +5,18 @@
 This framework combines other libraries to provide a Model-View-Controller (MVC)
 architecture for code in the browser. The key libraries are:
 
-- Model - GraphQL
+- Model - Any JavaScript plain object or class instance
 - View - [React](https://reactjs.org/)
 - Controller - [React Easy State](https://github.com/RisingStack/react-easy-state)
 
-## Example
-
-See `./demo/counter.tsx` for a simple controller example. To run the demo in your browser:
+## Running the demo
 
 ```
 yarn
 yarn demo
 ```
 
-To run with react in production mode
+To run with React in production mode:
 
 ```
 yarn demo:production
@@ -60,8 +58,309 @@ Avoiding re-rendering is critical for good React performance. In most cases the 
 
 The framework should be lightweight enough to be attractive to use for very simple, even single-component, applications. It should also scale to sophisticated applications involving many components and many controllers. A developer should not have to think too hard to determine if it is worth the overhead of introducing the framework - they should always want to reach for it.
 
-## API
+## Examples
+
+### Basic Counter
+
+The simplest MVC pattern: a controller owns the state, action methods mutate it, and the view re-renders automatically.
+
+```tsx
+import {
+  ApplicationController,
+  ApplicationView,
+  StartControllerScope,
+  useController,
+} from '@aha-app/mvc';
+
+interface CounterState {
+  count: number;
+}
+
+class CounterController extends ApplicationController<CounterState> {
+  get initialState() {
+    return { count: 0 };
+  }
+
+  actionIncrement() {
+    this.state.count += 1;
+  }
+
+  actionDecrement() {
+    this.state.count -= 1;
+  }
+}
+
+const Counter = () => {
+  const controller = useController(CounterController);
+  const { count } = controller.state;
+
+  return (
+    <div>
+      <p>{count}</p>
+      <button onClick={() => controller.actionIncrement()}>+</button>
+      <button onClick={() => controller.actionDecrement()}>-</button>
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  CounterController,
+  ApplicationView(Counter)
+);
+```
+
+### Lifecycle & Async
+
+Use `initialize` for setup and `destroy` for cleanup. Both are called automatically when the component mounts and unmounts.
+
+```tsx
+interface TimerState {
+  elapsed: number;
+}
+
+class TimerController extends ApplicationController<TimerState> {
+  private intervalId: ReturnType<typeof setInterval>;
+
+  get initialState() {
+    return { elapsed: 0 };
+  }
+
+  async initialize() {
+    this.intervalId = setInterval(() => {
+      this.actionTick();
+    }, 1000);
+  }
+
+  destroy() {
+    clearInterval(this.intervalId);
+  }
+
+  actionTick() {
+    this.state.elapsed += 1;
+  }
+
+  actionReset() {
+    this.state.elapsed = 0;
+  }
+}
+
+const Timer = () => {
+  const controller = useController(TimerController);
+
+  return (
+    <div>
+      <p>{controller.state.elapsed}s</p>
+      <button onClick={() => controller.actionReset()}>Reset</button>
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  TimerController,
+  ApplicationView(Timer)
+);
+```
+
+### Nested Components
+
+Scope the controller once at the top of the tree. Any descendant wrapped in `ApplicationView` can access the same controller instance with `useController` and will re-render only when the state it reads changes.
+
+```tsx
+interface FormState {
+  values: Record<string, string>;
+}
+
+class FormController extends ApplicationController<FormState> {
+  get initialState() {
+    return { values: {} };
+  }
+
+  actionUpdate(field: string, value: string) {
+    this.state.values[field] = value;
+  }
+}
+
+const FormField = ApplicationView<{ name: string }>(({ name }) => {
+  const controller = useController(FormController);
+
+  return (
+    <input
+      value={controller.state.values[name] || ''}
+      onChange={(e) => controller.actionUpdate(name, e.target.value)}
+      placeholder={name}
+    />
+  );
+});
+
+const FormSummary = ApplicationView(() => {
+  const controller = useController(FormController);
+  const { values } = controller.state;
+
+  return (
+    <pre>{JSON.stringify(values, null, 2)}</pre>
+  );
+});
+
+const Form = () => {
+  return (
+    <div>
+      <FormField name="firstName" />
+      <FormField name="lastName" />
+      <FormSummary />
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  FormController,
+  ApplicationView(Form)
+);
+```
+
+### Parent-Child Controllers
+
+When controllers are nested, a child can find its parent with `findControllerInstance` to call methods on it directly.
+
+```tsx
+interface AppState {
+  notifications: string[];
+}
+
+class AppController extends ApplicationController<AppState> {
+  get initialState() {
+    return { notifications: [] };
+  }
+
+  actionNotify(message: string) {
+    this.state.notifications.push(message);
+  }
+}
+
+interface EditorState {
+  content: string;
+}
+
+class EditorController extends ApplicationController<EditorState, {}, AppController> {
+  get initialState() {
+    return { content: '' };
+  }
+
+  actionUpdateContent(content: string) {
+    this.state.content = content;
+  }
+
+  actionSave() {
+    const app = this.findControllerInstance(AppController);
+    app.actionNotify('Document saved');
+  }
+}
+
+const Notifications = ApplicationView(() => {
+  const controller = useController(AppController);
+
+  return (
+    <ul>
+      {controller.state.notifications.map((msg, i) => (
+        <li key={i}>{msg}</li>
+      ))}
+    </ul>
+  );
+});
+
+const Editor = () => {
+  const controller = useController(EditorController);
+
+  return (
+    <div>
+      <textarea
+        value={controller.state.content}
+        onChange={(e) => controller.actionUpdateContent(e.target.value)}
+      />
+      <button onClick={() => controller.actionSave()}>Save</button>
+    </div>
+  );
+};
+
+const EditorPanel = StartControllerScope(
+  EditorController,
+  ApplicationView(Editor)
+);
+
+const App = () => {
+  return (
+    <div>
+      <Notifications />
+      <EditorPanel />
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  AppController,
+  ApplicationView(App)
+);
+```
+
+### Observing State Changes
+
+Use `this.observe()` to run side effects whenever observed state changes. Reactions set up this way are automatically cleaned up when the controller is destroyed.
+
+```tsx
+interface SearchState {
+  query: string;
+  results: string[];
+}
+
+class SearchController extends ApplicationController<SearchState> {
+  get initialState() {
+    return { query: '', results: [] };
+  }
+
+  async initialize() {
+    this.observe(() => {
+      const query = this.state.query;
+      if (query.length >= 2) {
+        this.actionSearch(query);
+      }
+    });
+  }
+
+  actionSetQuery(query: string) {
+    this.state.query = query;
+  }
+
+  async actionSearch(query: string) {
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    this.state.results = await response.json();
+  }
+}
+
+const Search = () => {
+  const controller = useController(SearchController);
+  const { query, results } = controller.state;
+
+  return (
+    <div>
+      <input
+        value={query}
+        onChange={(e) => controller.actionSetQuery(e.target.value)}
+        placeholder="Search..."
+      />
+      <ul>
+        {results.map((result, i) => (
+          <li key={i}>{result}</li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default StartControllerScope(
+  SearchController,
+  ApplicationView(Search)
+);
+```
 
 ## Licensing
 
-mvc is [MIT licensed](./LICENSE) and is Copyright 2020-2023 Aha! Labs Inc.
+mvc is [MIT licensed](./LICENSE) and is Copyright 2020-2026 Aha! Labs Inc.
